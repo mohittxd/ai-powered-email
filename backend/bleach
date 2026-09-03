@@ -1,0 +1,47 @@
+# ─── ForensicAI — Python dependencies ────────────────────────────────────────
+
+# Web framework
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+python-multipart==0.0.9
+
+# Database — SQLAlchemy async + drivers
+sqlalchemy==2.0.30
+aiosqlite==0.20.0        # SQLite driver (local dev / CI)
+asyncpg==0.29.0          # PostgreSQL async driver (production)
+
+# Validation / settings
+pydantic==2.7.1
+pydantic-settings==2.3.0
+email-validator==2.1.2   # pydantic email validation
+
+# DNS / email parsing
+dnspython==2.6.1
+
+# HTTP client
+requests==2.32.3
+httpx==0.27.0
+
+# HTML parsing (email body extraction)
+beautifulsoup4==4.12.3
+lxml==5.2.2
+chardet==5.2.0
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# ML / classification / NLP
+scikit-learn==1.5.0
+numpy==1.26.4
+xgboost>=2.0.0
+transformers>=4.40.0
+
+# Graph analysis (campaign clustering)
+networkx==3.3
+
+# PDF report export
+reportlab==4.2.2
+
+# Environment
+python-dotenv==1.0.1

@@ -1,0 +1,28 @@
+Delivered-To: victim@company.com
+Received: by 10.1.2.3 with SMTP id abcdef;
+        Wed, 02 Sep 2026 12:00:00 -0700 (PDT)
+Received: from mail.attacker.com (mail.attacker.com. [103.14.5.6])
+        by mx.company.com with ESMTPS id ghijkl
+        for <victim@company.com>;
+        Wed, 02 Sep 2026 12:00:00 -0700 (PDT)
+Authentication-Results: mx.company.com;
+       spf=fail (company.com: domain of admin@paypal-update.com does not designate 103.14.5.6 as permitted sender) smtp.mailfrom=admin@paypal-update.com;
+       dkim=fail (bad signature) header.i=@paypal-update.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=paypal-update.com
+From: "PayPal Security" <admin@paypal-update.com>
+To: victim@company.com
+Reply-To: attacker@gmail.com
+Subject: URGENT: Your PayPal Account Has Been Suspended!
+Date: Wed, 02 Sep 2026 12:00:00 -0700
+Message-ID: <1234567890@mail.attacker.com>
+Content-Type: text/html; charset="UTF-8"
+
+<html>
+<body>
+<p>Dear Customer,</p>
+<p>Your PayPal account has been suspended due to unusual sign-in activity.</p>
+<p>Please click here to verify your identity and reset your password immediately: <a href="http://bit.ly/3xyz789">Verify Now</a></p>
+<p>If you do not act within 24 hours, your account will be permanently closed.</p>
+<p>Thank you,<br>PayPal Security Team</p>
+</body>
+</html>

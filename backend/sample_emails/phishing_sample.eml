@@ -1,0 +1,62 @@
+From: "PayPal Security Team" <security@paypa1-alerts.tk>
+Reply-To: collect@harvester-domain.xyz
+Return-Path: <bounce@spammer-relay.ru>
+To: victim@example.com
+Subject: URGENT: Your PayPal account has been compromised - Verify Now
+Date: Sat, 23 Aug 2026 03:14:22 +0000
+Message-ID: <fake.id.12345@paypa1-alerts.tk>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============boundary123=="
+X-Mailer: PHPMailer 5.2.26
+Received: from paypa1-alerts.tk (paypa1-alerts.tk [185.220.101.34])
+        by mx.example.com (Postfix) with ESMTP id ABC123
+        for <victim@example.com>; Sat, 23 Aug 2026 03:14:35 +0000 (UTC)
+Received: from relay.spammer-relay.ru (unknown [91.108.4.55])
+        by paypa1-alerts.tk (Exim) with ESMTP id XYZ789
+        for <victim@example.com>; Sat, 23 Aug 2026 03:14:22 +0000
+
+--===============boundary123==
+Content-Type: text/plain; charset="utf-8"
+
+Dear Valued Customer,
+
+URGENT SECURITY ALERT - Immediate Action Required
+
+We have detected unusual sign-in activity on your PayPal account. Your account has been temporarily suspended to protect you from unauthorized access.
+
+To restore your account access immediately, you must verify your credentials within 24 hours or your account will be permanently locked.
+
+Click here to verify your account now: http://bit.ly/3xYphish
+
+This is a time sensitive matter. Act now to avoid permanent account suspension.
+
+For security purposes, please also confirm your bank account details and routing number so we can verify your identity.
+
+Wire transfer may be required to confirm account ownership.
+
+CEO Fraud Division
+PayPal Security Team
+
+--===============boundary123==
+Content-Type: text/html; charset="utf-8"
+
+<html>
+<body>
+<p>Dear Valued Customer,</p>
+<h2 style="color:red">URGENT: Account Suspended</h2>
+<p>We have detected unusual sign-in activity. <b>Verify your account immediately.</b></p>
+<p><a href="http://bit.ly/3xYphish">Click Here to Verify Now</a></p>
+<p>Also visit: <a href="http://paypa1-verify.xyz/login?token=abc123">http://paypa1-verify.xyz/login</a></p>
+<p>Time sensitive - respond today to avoid permanent suspension.</p>
+<img src="http://tracker.spammer-relay.ru/pixel.gif" width="1" height="1">
+</body>
+</html>
+
+--===============boundary123==
+Content-Type: application/vnd.ms-excel.sheet.macroEnabled.12
+Content-Disposition: attachment; filename="Invoice_OVERDUE_2026.xlsm"
+Content-Transfer-Encoding: base64
+
+UEsDBBQABgAIAAAAIQBi7p1oXgEAAJAEAAATAAgCW0NvbnRlbnRfVHlwZXNd
+
+--===============boundary123==--

@@ -1,0 +1,551 @@
+{
+  "total_samples": 50,
+  "accuracy": 0.62,
+  "per_class": {
+    "LEGITIMATE": {
+      "precision": 0.7143,
+      "recall": 1.0,
+      "f1_score": 0.8333,
+      "support": 10,
+      "true_positives": 10,
+      "false_positives": 4,
+      "false_negatives": 0
+    },
+    "SUSPICIOUS": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1_score": 0.6667,
+      "support": 10,
+      "true_positives": 5,
+      "false_positives": 0,
+      "false_negatives": 5
+    },
+    "IMPERSONATION": {
+      "precision": 0.5714,
+      "recall": 0.4,
+      "f1_score": 0.4706,
+      "support": 10,
+      "true_positives": 4,
+      "false_positives": 3,
+      "false_negatives": 6
+    },
+    "PHISHING": {
+      "precision": 0.3636,
+      "recall": 0.4,
+      "f1_score": 0.3809,
+      "support": 10,
+      "true_positives": 4,
+      "false_positives": 7,
+      "false_negatives": 6
+    },
+    "BEC_FRAUD": {
+      "precision": 0.6154,
+      "recall": 0.8,
+      "f1_score": 0.6957,
+      "support": 10,
+      "true_positives": 8,
+      "false_positives": 5,
+      "false_negatives": 2
+    }
+  },
+  "macro_avg": {
+    "precision": 0.6529,
+    "recall": 0.62,
+    "f1_score": 0.6094
+  },
+  "weighted_avg": {
+    "precision": 0.6529,
+    "recall": 0.62,
+    "f1_score": 0.6094
+  },
+  "confusion_matrix": {
+    "LEGITIMATE": {
+      "LEGITIMATE": 10,
+      "SUSPICIOUS": 0,
+      "IMPERSONATION": 0,
+      "PHISHING": 0,
+      "BEC_FRAUD": 0
+    },
+    "SUSPICIOUS": {
+      "LEGITIMATE": 4,
+      "SUSPICIOUS": 5,
+      "IMPERSONATION": 1,
+      "PHISHING": 0,
+      "BEC_FRAUD": 0
+    },
+    "IMPERSONATION": {
+      "LEGITIMATE": 0,
+      "SUSPICIOUS": 0,
+      "IMPERSONATION": 4,
+      "PHISHING": 5,
+      "BEC_FRAUD": 1
+    },
+    "PHISHING": {
+      "LEGITIMATE": 0,
+      "SUSPICIOUS": 0,
+      "IMPERSONATION": 2,
+      "PHISHING": 4,
+      "BEC_FRAUD": 4
+    },
+    "BEC_FRAUD": {
+      "LEGITIMATE": 0,
+      "SUSPICIOUS": 0,
+      "IMPERSONATION": 0,
+      "PHISHING": 2,
+      "BEC_FRAUD": 8
+    }
+  },
+  "sample_results": [
+    {
+      "id": "syn-legit-001",
+      "ground_truth": "LEGITIMATE",
+      "predicted": "LEGITIMATE",
+      "risk_score": 0,
+      "rule_score": 0,
+      "ml_score": 0,
+      "correct": true
+    },
+    {
+      "id": "syn-legit-002",
+      "ground_truth": "LEGITIMATE",
+      "predicted": "LEGITIMATE",
+      "risk_score": 2,
+      "rule_score": 5,
+      "ml_score": 0,
+      "correct": true
+    },
+    {
+      "id": "syn-legit-003",
+      "ground_truth": "LEGITIMATE",
+      "predicted": "LEGITIMATE",
+      "risk_score": 0,
+      "rule_score": 0,
+      "ml_score": 0,
+      "correct": true
+    },
+    {
+      "id": "syn-legit-004",
+      "ground_truth": "LEGITIMATE",
+      "predicted": "LEGITIMATE",
+      "risk_score": 2,
+      "rule_score": 5,
+      "ml_score": 0,
+      "correct": true
+    },
+    {
+      "id": "syn-legit-005",
+      "ground_truth": "LEGITIMATE",
+      "predicted": "LEGITIMATE",
+      "risk_score": 8,
+      "rule_score": 10,
+      "ml_score": 7,
+      "correct": true
+    },
+    {
+      "id": "syn-legit-006",
+      "ground_truth": "LEGITIMATE",
+      "predicted": "LEGITIMATE",
+      "risk_score": 0,
+      "rule_score": 0,
+      "ml_score": 0,
+      "correct": true
+    },
+    {
+      "id": "syn-legit-007",
+      "ground_truth": "LEGITIMATE",
+      "predicted": "LEGITIMATE",
+      "risk_score": 6,
+      "rule_score": 0,
+      "ml_score": 11,
+      "correct": true
+    },
+    {
+      "id": "syn-legit-008",
+      "ground_truth": "LEGITIMATE",
+      "predicted": "LEGITIMATE",
+      "risk_score": 2,
+      "rule_score": 5,
+      "ml_score": 0,
+      "correct": true
+    },
+    {
+      "id": "syn-legit-009",
+      "ground_truth": "LEGITIMATE",
+      "predicted": "LEGITIMATE",
+      "risk_score": 6,
+      "rule_score": 0,
+      "ml_score": 11,
+      "correct": true
+    },
+    {
+      "id": "syn-legit-010",
+      "ground_truth": "LEGITIMATE",
+      "predicted": "LEGITIMATE",
+      "risk_score": 2,
+      "rule_score": 5,
+      "ml_score": 0,
+      "correct": true
+    },
+    {
+      "id": "syn-susp-001",
+      "ground_truth": "SUSPICIOUS",
+      "predicted": "LEGITIMATE",
+      "risk_score": 22,
+      "rule_score": 35,
+      "ml_score": 12,
+      "correct": false
+    },
+    {
+      "id": "syn-susp-002",
+      "ground_truth": "SUSPICIOUS",
+      "predicted": "SUSPICIOUS",
+      "risk_score": 45,
+      "rule_score": 40,
+      "ml_score": 15,
+      "correct": true
+    },
+    {
+      "id": "syn-susp-003",
+      "ground_truth": "SUSPICIOUS",
+      "predicted": "IMPERSONATION",
+      "risk_score": 50,
+      "rule_score": 42,
+      "ml_score": 34,
+      "correct": false
+    },
+    {
+      "id": "syn-susp-004",
+      "ground_truth": "SUSPICIOUS",
+      "predicted": "LEGITIMATE",
+      "risk_score": 24,
+      "rule_score": 38,
+      "ml_score": 12,
+      "correct": false
+    },
+    {
+      "id": "syn-susp-005",
+      "ground_truth": "SUSPICIOUS",
+      "predicted": "SUSPICIOUS",
+      "risk_score": 45,
+      "rule_score": 45,
+      "ml_score": 26,
+      "correct": true
+    },
+    {
+      "id": "syn-susp-006",
+      "ground_truth": "SUSPICIOUS",
+      "predicted": "SUSPICIOUS",
+      "risk_score": 45,
+      "rule_score": 40,
+      "ml_score": 15,
+      "correct": true
+    },
+    {
+      "id": "syn-susp-007",
+      "ground_truth": "SUSPICIOUS",
+      "predicted": "LEGITIMATE",
+      "risk_score": 14,
+      "rule_score": 30,
+      "ml_score": 0,
+      "correct": false
+    },
+    {
+      "id": "syn-susp-008",
+      "ground_truth": "SUSPICIOUS",
+      "predicted": "LEGITIMATE",
+      "risk_score": 22,
+      "rule_score": 35,
+      "ml_score": 12,
+      "correct": false
+    },
+    {
+      "id": "syn-susp-009",
+      "ground_truth": "SUSPICIOUS",
+      "predicted": "SUSPICIOUS",
+      "risk_score": 45,
+      "rule_score": 38,
+      "ml_score": 15,
+      "correct": true
+    },
+    {
+      "id": "syn-susp-010",
+      "ground_truth": "SUSPICIOUS",
+      "predicted": "SUSPICIOUS",
+      "risk_score": 45,
+      "rule_score": 40,
+      "ml_score": 15,
+      "correct": true
+    },
+    {
+      "id": "syn-imp-001",
+      "ground_truth": "IMPERSONATION",
+      "predicted": "PHISHING",
+      "risk_score": 83,
+      "rule_score": 62,
+      "ml_score": 100,
+      "correct": false
+    },
+    {
+      "id": "syn-imp-002",
+      "ground_truth": "IMPERSONATION",
+      "predicted": "PHISHING",
+      "risk_score": 79,
+      "rule_score": 65,
+      "ml_score": 91,
+      "correct": false
+    },
+    {
+      "id": "syn-imp-003",
+      "ground_truth": "IMPERSONATION",
+      "predicted": "PHISHING",
+      "risk_score": 83,
+      "rule_score": 68,
+      "ml_score": 96,
+      "correct": false
+    },
+    {
+      "id": "syn-imp-004",
+      "ground_truth": "IMPERSONATION",
+      "predicted": "PHISHING",
+      "risk_score": 82,
+      "rule_score": 60,
+      "ml_score": 100,
+      "correct": false
+    },
+    {
+      "id": "syn-imp-005",
+      "ground_truth": "IMPERSONATION",
+      "predicted": "IMPERSONATION",
+      "risk_score": 65,
+      "rule_score": 64,
+      "ml_score": 67,
+      "correct": true
+    },
+    {
+      "id": "syn-imp-006",
+      "ground_truth": "IMPERSONATION",
+      "predicted": "IMPERSONATION",
+      "risk_score": 69,
+      "rule_score": 66,
+      "ml_score": 71,
+      "correct": true
+    },
+    {
+      "id": "syn-imp-007",
+      "ground_truth": "IMPERSONATION",
+      "predicted": "IMPERSONATION",
+      "risk_score": 60,
+      "rule_score": 63,
+      "ml_score": 55,
+      "correct": true
+    },
+    {
+      "id": "syn-imp-008",
+      "ground_truth": "IMPERSONATION",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 85,
+      "rule_score": 67,
+      "ml_score": 100,
+      "correct": false
+    },
+    {
+      "id": "syn-imp-009",
+      "ground_truth": "IMPERSONATION",
+      "predicted": "IMPERSONATION",
+      "risk_score": 66,
+      "rule_score": 65,
+      "ml_score": 66,
+      "correct": true
+    },
+    {
+      "id": "syn-imp-010",
+      "ground_truth": "IMPERSONATION",
+      "predicted": "PHISHING",
+      "risk_score": 81,
+      "rule_score": 69,
+      "ml_score": 91,
+      "correct": false
+    },
+    {
+      "id": "syn-phish-001",
+      "ground_truth": "PHISHING",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 91,
+      "rule_score": 80,
+      "ml_score": 100,
+      "correct": false
+    },
+    {
+      "id": "syn-phish-002",
+      "ground_truth": "PHISHING",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 90,
+      "rule_score": 78,
+      "ml_score": 100,
+      "correct": false
+    },
+    {
+      "id": "syn-phish-003",
+      "ground_truth": "PHISHING",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 91,
+      "rule_score": 82,
+      "ml_score": 99,
+      "correct": false
+    },
+    {
+      "id": "syn-phish-004",
+      "ground_truth": "PHISHING",
+      "predicted": "PHISHING",
+      "risk_score": 76,
+      "rule_score": 76,
+      "ml_score": 76,
+      "correct": true
+    },
+    {
+      "id": "syn-phish-005",
+      "ground_truth": "PHISHING",
+      "predicted": "PHISHING",
+      "risk_score": 74,
+      "rule_score": 84,
+      "ml_score": 65,
+      "correct": true
+    },
+    {
+      "id": "syn-phish-006",
+      "ground_truth": "PHISHING",
+      "predicted": "PHISHING",
+      "risk_score": 75,
+      "rule_score": 79,
+      "ml_score": 72,
+      "correct": true
+    },
+    {
+      "id": "syn-phish-007",
+      "ground_truth": "PHISHING",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 90,
+      "rule_score": 77,
+      "ml_score": 100,
+      "correct": false
+    },
+    {
+      "id": "syn-phish-008",
+      "ground_truth": "PHISHING",
+      "predicted": "IMPERSONATION",
+      "risk_score": 68,
+      "rule_score": 81,
+      "ml_score": 57,
+      "correct": false
+    },
+    {
+      "id": "syn-phish-009",
+      "ground_truth": "PHISHING",
+      "predicted": "PHISHING",
+      "risk_score": 81,
+      "rule_score": 83,
+      "ml_score": 79,
+      "correct": true
+    },
+    {
+      "id": "syn-phish-010",
+      "ground_truth": "PHISHING",
+      "predicted": "IMPERSONATION",
+      "risk_score": 67,
+      "rule_score": 80,
+      "ml_score": 57,
+      "correct": false
+    },
+    {
+      "id": "syn-bec-001",
+      "ground_truth": "BEC_FRAUD",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 98,
+      "rule_score": 95,
+      "ml_score": 100,
+      "correct": true
+    },
+    {
+      "id": "syn-bec-002",
+      "ground_truth": "BEC_FRAUD",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 96,
+      "rule_score": 92,
+      "ml_score": 100,
+      "correct": true
+    },
+    {
+      "id": "syn-bec-003",
+      "ground_truth": "BEC_FRAUD",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 96,
+      "rule_score": 90,
+      "ml_score": 100,
+      "correct": true
+    },
+    {
+      "id": "syn-bec-004",
+      "ground_truth": "BEC_FRAUD",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 90,
+      "rule_score": 88,
+      "ml_score": 91,
+      "correct": true
+    },
+    {
+      "id": "syn-bec-005",
+      "ground_truth": "BEC_FRAUD",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 90,
+      "rule_score": 96,
+      "ml_score": 85,
+      "correct": true
+    },
+    {
+      "id": "syn-bec-006",
+      "ground_truth": "BEC_FRAUD",
+      "predicted": "PHISHING",
+      "risk_score": 83,
+      "rule_score": 86,
+      "ml_score": 81,
+      "correct": false
+    },
+    {
+      "id": "syn-bec-007",
+      "ground_truth": "BEC_FRAUD",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 86,
+      "rule_score": 94,
+      "ml_score": 79,
+      "correct": true
+    },
+    {
+      "id": "syn-bec-008",
+      "ground_truth": "BEC_FRAUD",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 95,
+      "rule_score": 95,
+      "ml_score": 96,
+      "correct": true
+    },
+    {
+      "id": "syn-bec-009",
+      "ground_truth": "BEC_FRAUD",
+      "predicted": "PHISHING",
+      "risk_score": 84,
+      "rule_score": 93,
+      "ml_score": 76,
+      "correct": false
+    },
+    {
+      "id": "syn-bec-010",
+      "ground_truth": "BEC_FRAUD",
+      "predicted": "BEC_FRAUD",
+      "risk_score": 96,
+      "rule_score": 97,
+      "ml_score": 96,
+      "correct": true
+    }
+  ],
+  "disclaimer": "DISCLAIMER: The evaluation results are derived from a safe synthetic benchmark dataset designed for defensive model testing. Performance on this benchmark indicates heuristic signal efficacy but does NOT guarantee production-readiness or real-world zero-day generalization."
+}
