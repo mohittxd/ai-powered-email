@@ -28,9 +28,12 @@ logger = logging.getLogger(__name__)
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # Phase 2: hard 10 MB cap
 
 
-@router.post("/analyze-email", summary="Ingest and parse a .eml file (Phase 2)")
+@router.post(
+    "/analyze-email",
+    summary="Ingest and parse email evidence",
+)
 async def analyze_email(
-    file: UploadFile = File(..., description="Raw .eml file"),
+  file: UploadFile = File(..., description="Raw email evidence file"),
     case_id: str | None = Form(default=None),
     analyst_id: str | None = Form(default=None),
     db: AsyncSession = Depends(get_db),

@@ -147,87 +147,6 @@ def parse_eml(raw_bytes: bytes) -> dict:
     }
 
 
-def parse_msg(raw_bytes: bytes) -> dict:
-    """
-    Parse an Outlook .msg file into the normalized structure
-    used by the existing forensic pipeline.
-
-    MSG files are parsed as data only. No HTML, JavaScript,
-    attachments, or URLs are executed or followed.
-    """
-    import tempfile
-
-    try:
-        # pyrefly: ignore [missing-import]
-        import extract_msg
-    except ImportError:
-        raise ValueError("The 'extract_msg' package is required to parse .msg files.")
-
-    temp_path = None
-
-    try:
-        with tempfile.NamedTemporaryFile(
-            suffix=".msg",
-            delete=False,
-        ) as tmp:
-            tmp.write(raw_bytes)
-            temp_path = tmp.name
-
-        msg = extract_msg.Message(temp_path)
-
-        from_address = _decode(getattr(msg, "sender", "") or "")
-        to_address = _decode(getattr(msg, "to", "") or "")
-        cc_address = _decode(getattr(msg, "cc", "") or "")
-        subject = _decode(getattr(msg, "subject", "") or "")
-        body_text = _decode(getattr(msg, "body", "") or "")
-
-        attachments = []
-        for att in getattr(msg, "attachments", []):
-            filename = (
-                getattr(att, "longFilename", None)
-                or getattr(att, "shortFilename", None)
-                or "unknown"
-            )
-
-            attachments.append({
-                "filename": filename,
-                "content_type": "",
-                "size": 0,
-                "suspicious": (
-                    Path(filename).suffix.lower()
-                    in SUSPICIOUS_EXTS
-                ),
-            })
-
-        return {
-            "from_address": from_address,
-            "from_display_name": "",
-            "to": to_address,
-            "cc": cc_address,
-            "subject": subject,
-            "date": _decode(getattr(msg, "date", "") or ""),
-            "reply_to": "",
-            "sender": from_address,
-            "return_path": "",
-            "message_id": "",
-            "mime_version": "",
-            "content_type": "application/vnd.ms-outlook",
-            "auth_results": "",
-            "received_headers": [],
-            "headers": {},
-            "body_text": body_text,
-            "body_html": "",
-            "attachments": attachments,
-        }
-
-    finally:
-        if temp_path:
-            try:
-                os.unlink(temp_path)
-            except OSError:
-                pass
-
-
 def _extract_body(msg) -> tuple[str, str]:
     text, html = "", ""
     if msg.is_multipart():
@@ -305,31 +224,13 @@ def extract_iocs(parsed: dict) -> dict:
     }
 
 
-def store_evidence(
-    email_id: str,
-    raw_bytes: bytes,
-    upload_dir: str,
-    original_filename: str = "",
-) -> str:
-    """Write the original evidence to disk unmodified. Returns storage path."""
+def store_evidence(email_id: str, raw_bytes: bytes, upload_dir: str) -> str:
+    """Write the original .eml to disk unmodified. Returns storage path."""
     os.makedirs(upload_dir, exist_ok=True)
-
-    ext = Path(original_filename).suffix.lower() if original_filename else ""
-
-    if ext not in {".eml", ".msg"}:
-        ext = ".eml"
-
-    path = os.path.join(upload_dir, f"{email_id}{ext}")
-
+    path = os.path.join(upload_dir, f"{email_id}.eml")
     with open(path, "wb") as f:
         f.write(raw_bytes)
-
-    logger.debug(
-        "Evidence stored: %s (%d bytes)",
-        path,
-        len(raw_bytes),
-    )
-
+    logger.debug("Evidence stored: %s (%d bytes)", path, len(raw_bytes))
     return path
 
 
@@ -341,26 +242,15 @@ def ingest_email(
     """
     Full Phase 2 ingestion pipeline:
       1. SHA-256 (immediately after read)
-      2. Parse all headers and MIME body (.eml or .msg)
+      2. Parse all headers and MIME body
       3. Extract IOCs (URLs, IPs, domains)
-      4. Store original evidence to disk (unmodified)
+      4. Store original .eml as evidence (unmodified)
     """
     email_id = str(uuid.uuid4())
     sha256   = compute_sha256(raw_bytes)      # Step 1 — hash first
-    ext      = Path(original_filename).suffix.lower() if original_filename else ""
-
-    if ext == ".msg":
-        parsed = parse_msg(raw_bytes)
-    else:
-        parsed = parse_eml(raw_bytes)         # Step 2 — parse
-
-    iocs = extract_iocs(parsed)               # Step 3 — IOC extraction
-    path = store_evidence(
-        email_id,
-        raw_bytes,
-        upload_dir,
-        original_filename,
-    )                                          # Step 4 — store evidence
+    parsed   = parse_eml(raw_bytes)           # Step 2 — parse
+    iocs     = extract_iocs(parsed)           # Step 3 — IOC extraction
+    path     = store_evidence(email_id, raw_bytes, upload_dir)  # Step 4
 
     return {
         "email_id":     email_id,

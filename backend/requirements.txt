@@ -17,6 +17,8 @@ email-validator==2.1.2   # pydantic email validation
 
 # DNS / email parsing
 dnspython==2.6.1
+extract-msg
+
 
 # HTTP client
 requests==2.32.3
@@ -46,4 +48,4 @@ reportlab==4.2.2
 # Environment
 python-dotenv==1.0.1
 bleach
-bleach
+

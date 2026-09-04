@@ -10,10 +10,16 @@ export default function EmailUpload({ onAnalyze, loading }) {
 
   const handleFile = (f) => {
     if (!f) return
-    if (!f.name.endsWith('.eml') && f.type !== 'message/rfc822') {
-      alert('Please upload a valid .eml file')
-      return
-    }
+   const allowedExtensions = ['.eml', '.msg']
+
+const extension = f.name
+  .slice(f.name.lastIndexOf('.'))
+  .toLowerCase()
+
+if (!allowedExtensions.includes(extension)) {
+  alert('Please upload a valid .eml or .msg file')
+  return
+}
     setFile(f)
   }
 
@@ -56,7 +62,11 @@ export default function EmailUpload({ onAnalyze, loading }) {
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
         >
-          <input ref={fileRef} type="file" accept=".eml,message/rfc822" style={{ display: 'none' }}
+        <input
+  ref={fileRef}
+  type="file"
+  accept=".eml,.msg,message/rfc822,application/vnd.ms-outlook"
+  style={{ display: 'none' }}
             onChange={e => handleFile(e.target.files?.[0])} />
 
           {file ? (
@@ -75,8 +85,8 @@ export default function EmailUpload({ onAnalyze, loading }) {
           ) : (
             <>
               <span className="upload-icon">📧</span>
-              <div className="upload-title">Drop .eml file here</div>
-              <div className="upload-sub">or click to browse — max 10 MB</div>
+              <div className="upload-title">Drop .eml or .msg file here</div>
+              <div className="upload-sub">or click to browse — .eml / .msg — max 10 MB</div>
             </>
           )}
         </div>
