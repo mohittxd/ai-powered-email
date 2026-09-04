@@ -151,19 +151,19 @@ async def stats_overview(db: AsyncSession = Depends(get_db)):
         )
     ).scalar() or 0
 
-   # Average fraud score
-avg_result = await db.execute(select(func.avg(Email.fraud_score)))
-raw_avg_score = avg_result.scalar() or 0
+    # Average fraud score
+    avg_result = await db.execute(select(func.avg(Email.fraud_score)))
+    raw_avg_score = avg_result.scalar() or 0
 
-# Database may contain either 0–1 or 0–100 scores.
-avg_score = (
-    raw_avg_score * 100
-    if raw_avg_score <= 1
-    else raw_avg_score
-)
+    # Database may contain either 0–1 or 0–100 scores.
+    avg_score = (
+        raw_avg_score * 100
+        if raw_avg_score <= 1
+        else raw_avg_score
+    )
 
-# Always keep the displayed score within 0–100.
-avg_score = round(max(0, min(avg_score, 100)), 1)
+    # Always keep the displayed score within 0–100.
+    avg_score = round(max(0, min(avg_score, 100)), 1)
     # Classification distribution
     class_result = await db.execute(
         select(Email.classification, func.count().label("cnt"))
