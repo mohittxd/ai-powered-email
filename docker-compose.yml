@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
   db:
@@ -50,7 +50,7 @@ services:
     networks:
       - forensic_net
 
-  frontend:
+    frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -61,9 +61,14 @@ services:
         condition: service_healthy
     ports:
       - "3000:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - forensic_net
-
 volumes:
   postgres_data:
     driver: local
