@@ -54,7 +54,8 @@ export default function Dashboard({ onAnalyzed }) {
     setError(null)
     setResult(null)
     try {
-      const data = await analyzeEmail(file, rawHeaders)
+      const user = JSON.parse(localStorage.getItem('ef_user') || 'null')
+      const data = await analyzeEmail(file, rawHeaders, null, user?.id)
       setResult(data)
       onAnalyzed?.()
 
