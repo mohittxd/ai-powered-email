@@ -3,7 +3,7 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: forensic_postgres
+    # container_name: forensic_postgres
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-forensic_user}
@@ -25,7 +25,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: forensic_backend
+    # container_name: forensic_backend
     restart: always
     depends_on:
       db:
@@ -50,11 +50,11 @@ services:
     networks:
       - forensic_net
 
-    frontend:
+  frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: forensic_frontend
+    # container_name: forensic_frontend
     restart: always
     depends_on:
       backend:
