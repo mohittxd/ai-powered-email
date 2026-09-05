@@ -10,7 +10,7 @@ To launch the complete platform (Frontend, FastAPI Backend, PostgreSQL Database,
 
 ```bash
 # 1. Clone or navigate to repository root
-cd "new s"
+cd "<your current folder name>"
 
 # 2. Copy environment configuration
 cp .env.example .env
