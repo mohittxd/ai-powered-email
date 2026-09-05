@@ -1,6 +1,6 @@
 # 🛡️ ForensicAI — AI-Powered Email Threat Detection & Forensic Intelligence Platform
 
-> **ForensicAI** is an enterprise defensive security application designed for SOC analysts, incident response teams, and security researchers to analyze suspicious `.eml` evidence, extract IOCs, trace network origin paths, evaluate authentication parameters (SPF/DKIM/DMARC), run Transformer ML risk classification, execute NetworkX campaign correlation, and export legal-grade PDF forensic reports.
+> **ForensicAI** is an enterprise defensive security application designed for SOC analysts, incident response teams, and security researchers to analyze suspicious email evidence, extract IOCs, trace network origin paths, evaluate authentication parameters (SPF/DKIM/DMARC), run Transformer ML risk classification, execute NetworkX campaign correlation, and export legal-grade PDF forensic reports.
 
 ---
 
@@ -26,6 +26,21 @@ Once started, access the application interfaces:
 
 ---
 
+## 📥 Supported Email Evidence Formats
+
+ForensicAI ingests raw email evidence and normalizes it before analysis, rather than being limited to a single source format.
+
+| Format | Extension | Status |
+| :--- | :--- | :--- |
+| Internet Message Format | `.eml` | ✅ Parsed and analyzed |
+| Outlook Message Format | `.msg` | ✅ Parsed and analyzed (via `extract-msg`) |
+
+Uploaded evidence is parsed into a normalized internal email representation (headers, MIME body parts, attachments) so the rest of the forensic pipeline — authentication checks, IOC extraction, ML classification, and reporting — runs identically regardless of the original source format.
+
+> **Note:** Only the formats listed above are parsed by the current backend. If your deployment's upload UI presents additional file types, treat any format not listed here as **not yet supported for forensic analysis** until the backend parsing layer is extended.
+
+---
+
 ## 🏛️ Platform Architecture
 
 ```text
@@ -48,6 +63,26 @@ Once started, access the application interfaces:
       └──────────────────────────┘   └──────────────────────────┘
 ```
 
+### Evidence Ingestion Workflow
+
+```text
+User uploads email evidence (.eml / .msg)
+       ↓
+File type detection
+       ↓
+Format-specific email parser (email.parser / extract-msg)
+       ↓
+Normalized email representation (headers, MIME body, attachments)
+       ↓
+Forensic analysis pipeline
+       ↓
+Authentication / header / IP / URL / attachment analysis
+       ↓
+Fraud / risk assessment (Transformer + XGBoost classifier)
+       ↓
+Dashboard and forensic report
+```
+
 ---
 
 ## 🔐 Default Access Credentials (RBAC)
@@ -58,7 +93,7 @@ The system comes pre-configured with 3 role-based accounts for SOC demonstration
 | :--- | :--- | :--- | :--- | :--- |
 | **ADMIN** | `admin` | `admin@forensic.local` | `Admin123!` | All permissions, User Management, Immutable Audit Logs |
 | **INVESTIGATOR** | `investigator` | `investigator@forensic.local` | `Investigator123!` | Case view, Forensic PDF Report export, IOC Database query |
-| **ANALYST** | `analyst` | `analyst@forensic.local` | `Analyst123!` | Upload `.eml` evidence, Run threat analysis, View assigned cases |
+| **ANALYST** | `analyst` | `analyst@forensic.local` | `Analyst123!` | Upload email evidence (`.eml`, `.msg`), Run threat analysis, View assigned cases |
 
 ---
 
@@ -106,7 +141,7 @@ python scripts/evaluate_ml.py
 
 ## 📋 Features Checklist & Key Capabilities
 
-- [x] **Email Evidence Ingestion**: Parse `.eml` attachments, calculate SHA-256 hashes, extract MIME bodies and headers.
+- [x] **Multi-Format Email Evidence Ingestion**: Accepts `.eml` and `.msg` email evidence, detects the source format, calculates SHA-256 hashes, and extracts MIME bodies and headers into a normalized representation.
 - [x] **Header Forensics & Trace Route**: Reconstruct Received hop chains, flag anomalies, identify earliest public sender IP.
 - [x] **Authentication Engine**: Strict SPF, DKIM, and DMARC verification.
 - [x] **IOC Extraction & IP Intel**: Automated URL/Domain/IP extraction, AbuseIPDB threat lookup, and GeoIP mapping.
@@ -115,6 +150,13 @@ python scripts/evaluate_ml.py
 - [x] **Interactive Investigation Timeline**: 11-step interactive event sequence for evidence tracking.
 - [x] **Role-Based Access Control (RBAC)**: Secure JWT authentication with immutable PostgreSQL audit trail.
 - [x] **ReportLab PDF Export**: Legal-grade forensic case report PDF generation with attribution disclaimers.
+
+---
+
+## ⚠️ Limitations
+
+- Forensic parsing currently covers `.eml` and `.msg` email evidence only. Other document or archive types (e.g. PDF, DOCX, images, ZIP, CSV) are **not** parsed as email evidence, even if such files are accepted elsewhere in the platform.
+- Technical indicators represent observed structural evidence and network correlations. They do not by themselves establish the identity of a human actor.
 
 ---
 
