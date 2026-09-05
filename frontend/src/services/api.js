@@ -13,12 +13,12 @@ api.interceptors.request.use(cfg => {
 })
 
 // ── Email Analysis ──────────────────────────────────────────────────────────
-export const analyzeEmail = async (file = null, rawHeaders = null, caseId = null) => {
+export const analyzeEmail = async (file = null, rawHeaders = null, caseId = null, analystId = null) => {
   const form = new FormData()
   if (file) form.append('file', file)
   if (rawHeaders) form.append('raw_headers', rawHeaders)
   if (caseId) form.append('case_id', caseId)
-  form.append('analyst_id', 'demo-analyst-001')
+  form.append('analyst_id', analystId)
   const res = await api.post('/analyze-email', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
@@ -32,8 +32,8 @@ export const getMe = async () => (await api.get('/auth/me')).data
 
 // ── Cases ───────────────────────────────────────────────────────────────────
 export const listCases = async (params = {}) => (await api.get('/cases', { params })).data
-export const createCase = async (title) =>
-  (await api.post('/cases', { title, analyst_id: 'demo-analyst-001' })).data
+export const createCase = async (title, analystId) =>
+  (await api.post('/cases', { title, analyst_id: analystId })).data
 export const getCase = async (id) => (await api.get(`/cases/${id}`)).data
 export const updateCaseStatus = async (id, status) =>
   (await api.patch(`/cases/${id}/status`, null, { params: { status } })).data

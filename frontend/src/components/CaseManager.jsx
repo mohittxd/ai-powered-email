@@ -88,6 +88,7 @@ export default function CaseManager() {
   const [selected, setSelected] = useState(null)
   const [error, setError] = useState(null)
   const toast = useToast()
+  const user = JSON.parse(localStorage.getItem('ef_user') || 'null')
   
   const [filters, setFilters] = useState({ q: '', sender: '', domain: '', ip: '', date: '', classification: '' })
 
@@ -122,7 +123,7 @@ export default function CaseManager() {
     if (!newTitle.trim()) return
     setCreating(true)
     try {
-      await createCase(newTitle.trim())
+      await createCase(newTitle.trim(), user?.id)
       setNewTitle(''); setShowForm(false)
       await load()
       toast.push(`Case "${newTitle.trim()}" created`, 'success')
