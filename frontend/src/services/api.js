@@ -58,6 +58,12 @@ export const listCampaigns = async () => (await api.get('/campaigns')).data
 
 // ── Reports ───────────────────────────────────────────────────────────────────
 export const getJsonReport = (emailId) => `/api/v1/emails/${emailId}/report.json`
+
+// ── Imported Gmail / Existing Emails ───────────────────────────────────────
+export const getEmails = async (params = {}) => (await api.get('/emails', { params })).data
+export const analyzeExistingEmail = async (emailId) => (await api.post(`/emails/${emailId}/analyze`)).data
+
+
 export const getPdfReport = (emailId) => `/api/v1/emails/${emailId}/report.pdf`
 export const getCaseJsonReport = (caseId) => `/api/v1/cases/${caseId}/report`
 export const getCasePdfReport = (caseId) => `/api/v1/cases/${caseId}/report/pdf`

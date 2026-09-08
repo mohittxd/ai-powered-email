@@ -1,23 +1,25 @@
-
-
 services:
   db:
     image: postgres:16-alpine
-    # container_name: forensic_postgres
     restart: always
+
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-forensic_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forensic_secret_pass}
       POSTGRES_DB: ${POSTGRES_DB:-forensic_db}
+
     ports:
-      - "5432:5432"
+      - "5433:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-forensic_user} -d ${POSTGRES_DB:-forensic_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
     networks:
       - forensic_net
 
@@ -25,28 +27,38 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    # container_name: forensic_backend
+
     restart: always
+
     depends_on:
       db:
         condition: service_healthy
+
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-forensic_user}:${POSTGRES_PASSWORD:-forensic_secret_pass}@db:5432/${POSTGRES_DB:-forensic_db}
       SECRET_KEY: ${SECRET_KEY:-change-this-in-production-super-secret-key-32-chars}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: "False"
       ABUSEIPDB_API_KEY: ${ABUSEIPDB_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-33688888736-0jboekj5lk7dmup9gum9qjkgesqj92r6.apps.googleusercontent.com}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-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}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8001/api/integrations/gmail/callback}
+      GOOGLE_GMAIL_SCOPES: ${GOOGLE_GMAIL_SCOPES:-https://www.googleapis.com/auth/gmail.readonly}
+
     ports:
-      - "8000:8000"
+      - "8001:8000"
+
     volumes:
       - forensic_uploads:/app/uploads
       - forensic_artifacts:/app/artifacts
+
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
+
     networks:
       - forensic_net
 
@@ -54,29 +66,31 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    # container_name: forensic_frontend
+
     restart: always
+
     depends_on:
       backend:
         condition: service_healthy
+
     ports:
       - "3000:80"
+
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+
     networks:
       - forensic_net
-volumes:
-  postgres_data:
-    driver: local
-  forensic_uploads:
-    driver: local
-  forensic_artifacts:
-    driver: local
 
 networks:
   forensic_net:
     driver: bridge
+
+volumes:
+  postgres_data:
+  forensic_uploads:
+  forensic_artifacts:

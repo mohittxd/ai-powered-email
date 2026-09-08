@@ -35,6 +35,14 @@ class User(Base):
     cases: Mapped[list["Case"]] = relationship("Case", back_populates="analyst")
     audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="analyst")
 
+    gmail_connection: Mapped[Optional["GmailConnection"]] = relationship(
+        "GmailConnection",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    
+
 
 # ---------------------------------------------------------------------------
 # Campaigns
@@ -230,3 +238,58 @@ class AnalysisResult(Base):
 
     email: Mapped["Email"] = relationship("Email", back_populates="analysis_results")
 
+# ---------------------------------------------------------------------------
+# Gmail OAuth Connections
+# ---------------------------------------------------------------------------
+class GmailConnection(Base):
+    __tablename__ = "gmail_connections"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=new_uuid,
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("users.id"),
+        nullable=False,
+        unique=True,
+    )
+
+    google_email: Mapped[Optional[str]] = mapped_column(
+        String(255)
+    )
+
+    access_token: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    refresh_token: Mapped[Optional[str]] = mapped_column(
+        Text
+    )
+
+    token_expiry: Mapped[Optional[datetime]] = mapped_column(
+        DateTime
+    )
+
+    scopes: Mapped[Optional[str]] = mapped_column(
+        Text
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="gmail_connection",
+    )
