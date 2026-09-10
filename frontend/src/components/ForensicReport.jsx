@@ -22,6 +22,32 @@ export default function ForensicReport({ result }) {
 
   const pdfUrl = case_id ? getCasePdfReport(case_id) : email_id ? getPdfReport(email_id) : '#'
   const jsonUrl = case_id ? getCaseJsonReport(case_id) : email_id ? getJsonReport(email_id) : '#'
+  const [generating, setGenerating] = React.useState(false)
+
+  const downloadPdf = async () => {
+    if (!pdfUrl) return
+    setGenerating(true)
+    toast.push('Generating professional PDF forensic report…', 'info')
+    try {
+      const res = await fetch(pdfUrl, { method: 'GET' })
+      if (!res.ok) throw new Error(`Server returned ${res.status}`)
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `forensic_report_${email_id || 'report'}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+      toast.push('PDF report generated and download started.', 'success')
+    } catch (err) {
+      console.error('PDF generation failed', err)
+      toast.push(`Report generation failed: ${err.message || err}`, 'error')
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   return (
     <div className="card fade-in">
@@ -42,18 +68,16 @@ export default function ForensicReport({ result }) {
             <FileJson size={14} />
             Export JSON
           </a>
-          <a
+          <button
             id="btn-export-pdf"
-            href={pdfUrl}
-            target="_blank"
-            rel="noreferrer"
+            onClick={downloadPdf}
             className="btn btn-primary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={() => toast.push('Generating professional PDF forensic report…', 'info')}
+            disabled={generating}
           >
             <Download size={14} />
-            Download PDF Report
-          </a>
+            {generating ? 'Generating Report…' : 'Download PDF Report'}
+          </button>
         </div>
       </div>
 

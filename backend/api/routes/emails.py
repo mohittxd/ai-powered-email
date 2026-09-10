@@ -16,7 +16,7 @@ from services.email_ingestor import ingest_email, validate_eml_upload, parse_eml
 from services.header_forensics import analyze_header_forensics
 from services.email_auth import analyze_authentication
 from services.ioc_analysis import extract_all_iocs, LOW, MEDIUM, HIGH, CRITICAL
-from services.geoip import get_geolocation
+from services.geolocation import trace_origin
 from services.threat_intel import get_threat_intel
 from services.risk_engine import calculate_risk_score
 from services.ai_classifier import run_ai_classification
@@ -83,10 +83,44 @@ async def analyze_email(
     # ── 3d. Phase 5 — comprehensive IOC extraction ────────────────────────────
     ioc_result = extract_all_iocs(parsed, email_id=email_id)
 
-    # ── 3e. Phase 6 — IP Intelligence ─────────────────────────────────────────
-    geo_info = get_geolocation(earliest_ip)
+    # ── 3e. Phase 6 — IP Intelligence & Origin Trace ───────────────────────────
+    # Build trace input from header forensics (received_chain uses source_ip)
+    trace_hops_input = []
+    for idx, hop in enumerate(forensics.get("received_chain", [])):
+        trace_hops_input.append({
+            "ip_address": hop.get("source_ip"),
+            "hop_index": idx,
+            "source_hostname": hop.get("source_hostname"),
+            "receiving_hostname": hop.get("receiving_hostname"),
+        })
+
+    origin_trace = await trace_origin(
+        parsed,
+        {**authentication, "received_hops": trace_hops_input},
+    )
+
+    # Merge enriched hop info back into forensics.received_chain for persistence/response
+    enriched_map = {h.get("hop_index"): h for h in origin_trace.get("hops", [])}
+    for idx, hop in enumerate(forensics.get("received_chain", [])):
+        enriched = enriched_map.get(idx)
+        if enriched:
+            hop["geolocation"] = {
+                "country": enriched.get("country"),
+                "city": enriched.get("city"),
+                "region": enriched.get("region"),
+                "isp": enriched.get("isp"),
+                "asn": enriched.get("asn"),
+                "lat": enriched.get("lat"),
+                "lon": enriched.get("lon"),
+                "is_private": enriched.get("is_private"),
+                "is_vpn_tor": enriched.get("is_vpn_tor"),
+                "is_hosting": enriched.get("is_hosting"),
+                "threat_flags": enriched.get("threat_flags", []),
+            }
+
+    geo_info = origin_trace.get("origin_hop") or {}
     threat_info = get_threat_intel(earliest_ip)
-    
+
     # ── 3f. Phase 7 & 14 — Risk Engine & AI Classification ──────────────
     rule_risk = calculate_risk_score(
         parsed=parsed,
@@ -104,13 +138,13 @@ async def analyze_email(
         rule_based_result=rule_risk,
     )
 
-    # Augment received_chain with geolocation for Phase 10
-    for hop in forensics.get("received_chain", []):
-        ip = hop.get("source_ip")
-        if ip:
-            g = get_geolocation(ip)
-            if g.get("status") == "success":
-                hop["geolocation"] = g
+    # # Augment received_chain with geolocation for Phase 10
+    # for hop in forensics.get("received_chain", []):
+    #     ip = hop.get("source_ip")
+    #     if ip:
+    #         g = get_geolocation(ip)
+    #         if g.get("status") == "success":
+    #             hop["geolocation"] = g
 
     # ── 4. Persist ────────────────────────────────────────────────────────────
     db_email = Email(
@@ -171,8 +205,8 @@ async def analyze_email(
             region=geo.get("region"),
             isp=geo.get("isp"),
             asn=geo.get("asn"),
-            lat=geo.get("latitude"),
-            lon=geo.get("longitude"),
+            lat=geo.get("lat"),
+            lon=geo.get("lon"),
             is_private=not bool(hop.get("source_ip"))
         ))
 
@@ -248,6 +282,7 @@ async def analyze_email(
             "geolocation": geo_info,
             "threat_intel": threat_info,
         },
+        "origin_trace": origin_trace,
         "risk_analysis":     risk,
     }
 
@@ -353,7 +388,41 @@ async def analyze_existing_email(
     )
 
     # ── 7. IP intelligence ──────────────────────────────────────────────────
-    geo_info = get_geolocation(earliest_ip)
+    # Use trace_origin to geolocate received hops and determine origin hop
+    trace_hops_input = []
+    for idx, hop in enumerate(forensics.get("received_chain", [])):
+        trace_hops_input.append({
+            "ip_address": hop.get("source_ip"),
+            "hop_index": idx,
+            "source_hostname": hop.get("source_hostname"),
+            "receiving_hostname": hop.get("receiving_hostname"),
+        })
+
+    origin_trace = await trace_origin(
+        parsed,
+        {**authentication, "received_hops": trace_hops_input},
+    )
+
+    # Merge enriched hop info back into forensics.received_chain for persistence/response
+    enriched_map = {h.get("hop_index"): h for h in origin_trace.get("hops", [])}
+    for idx, hop in enumerate(forensics.get("received_chain", [])):
+        enriched = enriched_map.get(idx)
+        if enriched:
+            hop["geolocation"] = {
+                "country": enriched.get("country"),
+                "city": enriched.get("city"),
+                "region": enriched.get("region"),
+                "isp": enriched.get("isp"),
+                "asn": enriched.get("asn"),
+                "lat": enriched.get("lat"),
+                "lon": enriched.get("lon"),
+                "is_private": enriched.get("is_private"),
+                "is_vpn_tor": enriched.get("is_vpn_tor"),
+                "is_hosting": enriched.get("is_hosting"),
+                "threat_flags": enriched.get("threat_flags", []),
+            }
+
+    geo_info = origin_trace.get("origin_hop") or {}
     threat_info = get_threat_intel(earliest_ip)
 
     # ── 8. Risk engine + AI classification ──────────────────────────────────
@@ -374,13 +443,7 @@ async def analyze_existing_email(
         rule_based_result=rule_risk,
     )
 
-    # ── 9. Add geolocation to received chain ─────────────────────────────────
-    for hop in forensics.get("received_chain", []):
-        ip = hop.get("source_ip")
-        if ip:
-            g = get_geolocation(ip)
-            if g.get("status") == "success":
-                hop["geolocation"] = g
+    # ── 9. Received chain already enriched by trace_origin above ───────────
 
     # ── 10. Update existing Email record ────────────────────────────────────
     db_email.sha256_hash = db_email.sha256_hash or ""
@@ -499,8 +562,8 @@ async def analyze_existing_email(
                 region=geo.get("region"),
                 isp=geo.get("isp"),
                 asn=geo.get("asn"),
-                lat=geo.get("latitude"),
-                lon=geo.get("longitude"),
+                lat=geo.get("lat"),
+                lon=geo.get("lon"),
                 is_private=not bool(
                     hop.get("source_ip")
                 ),
@@ -593,5 +656,6 @@ async def analyze_existing_email(
             "geolocation": geo_info,
             "threat_intel": threat_info,
         },
+        "origin_trace": origin_trace,
         "risk_analysis": risk,
     }

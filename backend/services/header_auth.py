@@ -8,7 +8,7 @@ import re
 import dns.resolver
 import dns.exception
 from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
+from services.datetime_utils import normalize_datetime
 from typing import Optional
 
 
@@ -51,10 +51,8 @@ def _parse_received_date(received_str: str) -> Optional[datetime]:
     date_str = m.group(1).strip()
     # Remove any trailing comment
     date_str = re.sub(r'\s*\(.*\)\s*$', '', date_str).strip()
-    try:
-        return parsedate_to_datetime(date_str)
-    except Exception:
-        return None
+    # Normalize to a timezone-aware UTC datetime; returns None if unparseable
+    return normalize_datetime(date_str)
 
 
 def parse_received_chain(received_headers: list[str]) -> list[dict]:
