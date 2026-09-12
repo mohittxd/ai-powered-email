@@ -17,6 +17,12 @@ cp .env.example .env
 
 # 3. Build and launch all services with Docker Compose
 docker compose up --build
+
+# 4. Run in the bckground
+docker compose up -d --build
+
+# 5. check container
+docker compose ps
 ```
 
 Once started, access the application interfaces:
