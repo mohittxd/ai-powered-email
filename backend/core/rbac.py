@@ -31,11 +31,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import AsyncSessionLocal
 from core.models import AuditLog
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
 
-JWT_SECRET = b"emailforensics-jwt-secret-phase18-sih-2026"
+JWT_SECRET = settings.secret_key.encode("utf-8")
 JWT_ALGORITHM = "HS256"
 
 

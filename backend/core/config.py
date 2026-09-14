@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     # PII masking
     mask_pii: bool = False
 
+    # Gmail / Google OAuth
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    google_redirect_uri: str = "http://localhost:8001/api/integrations/gmail/callback"
+    google_gmail_scopes: str = "https://www.googleapis.com/auth/gmail.readonly"
+
     class Config:
         env_file = ".env"
         case_sensitive = False

@@ -110,8 +110,7 @@ export default function Dashboard({ onAnalyzed }) {
     setError(null)
     setResult(null)
     try {
-      const user = JSON.parse(localStorage.getItem('ef_user') || 'null')
-      const data = await analyzeEmail(file, rawHeaders, null, user?.id)
+      const data = await analyzeEmail(file, rawHeaders)
       setResult(data)
       onAnalyzed?.()
 
@@ -141,13 +140,11 @@ export default function Dashboard({ onAnalyzed }) {
   const forensics = result?.header_forensics || {}
   const earliestIp = forensics.earliest_observed_public_sender_ip || 'Unavailable'
 
-  // Prefer the origin_trace origin_hop when present, fall back to legacy ip_intelligence.geolocation
-  const originTrace = result?.origin_trace || {}
-  const originHop = originTrace?.origin_hop || result?.ip_intelligence?.geolocation || {}
-  const originCountry = originHop.country || 'Unavailable'
-  const originCity = originHop.city || 'Unavailable'
-  const originIsp = originHop.isp || 'Unavailable'
-  const originAsn = originHop.asn || 'Unavailable'
+  const geoip = result?.ip_intelligence?.geolocation || {}
+const originCountry = geoip.country || 'Unavailable'
+const originCity = geoip.city || 'Unavailable'
+const originIsp = geoip.isp || 'Unavailable'
+const originAsn = geoip.asn || 'Unavailable'
 const buildTimelineFromResponse = (res) => {
     if (!res) return null;
     const baseTime = res.ingested_at || new Date().toISOString();

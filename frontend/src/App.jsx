@@ -59,9 +59,118 @@ function Sidebar({ active, setActive, onLogout }) {
 
 function SettingsPage({ user }) {
   const toast = useToast()
-  const [imapHost, setImapHost] = useState('')
-  const [imapUser, setImapUser] = useState('')
-  const [imapPass, setImapPass] = useState('')
+
+  const [gmailStatus, setGmailStatus] = useState({
+    connected: false,
+    google_email: null,
+    loading: true,
+  })
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState(null)
+
+  const API = 'http://localhost:8001'
+
+  const getToken = () => localStorage.getItem('ef_token')
+
+  const loadGmailStatus = async () => {
+    try {
+      const token = getToken()
+      const res = await fetch(`${API}/api/integrations/gmail/status`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) throw new Error('Unable to check Gmail status')
+
+      const data = await res.json()
+
+      setGmailStatus({
+        connected: !!data.connected,
+        google_email: data.google_email || null,
+        loading: false,
+      })
+    } catch (err) {
+      console.error('Gmail status error:', err)
+      setGmailStatus(prev => ({ ...prev, loading: false }))
+    }
+  }
+
+  useEffect(() => {
+    loadGmailStatus()
+
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('gmail') === 'connected') {
+      toast.push('Gmail connected successfully!', 'success')
+      window.history.replaceState({}, document.title, window.location.pathname)
+      loadGmailStatus()
+    }
+  }, [])
+
+  const connectGmail = async () => {
+    try {
+      const token = getToken()
+
+      const res = await fetch(`${API}/api/integrations/gmail/connect`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || 'Unable to start Gmail connection')
+      }
+
+      const data = await res.json()
+
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url
+      } else {
+        throw new Error('Google authorization URL was not returned')
+      }
+    } catch (err) {
+      console.error('Gmail connect error:', err)
+      toast.push(err.message || 'Unable to connect Gmail', 'error')
+    }
+  }
+
+  const syncGmail = async () => {
+    setSyncing(true)
+    setSyncResult(null)
+
+    try {
+      const token = getToken()
+
+      const res = await fetch(`${API}/api/integrations/gmail/sync?max_results=20`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.detail || data.message || 'Gmail sync failed')
+      }
+
+      setSyncResult(data)
+
+      toast.push(
+        `Gmail sync complete: ${data.imported || 0} imported, ${data.skipped || 0} skipped.`,
+        'success'
+      )
+
+      // Notify other UI parts (Dashboard) to refresh imported emails list
+      try { window.dispatchEvent(new Event('gmailSynced')) } catch (e) { /* ignore */ }
+    } catch (err) {
+      console.error('Gmail sync error:', err)
+      toast.push(err.message || 'Gmail sync failed', 'error')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -69,22 +178,77 @@ function SettingsPage({ user }) {
         <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <Settings size={20} color="var(--accent)" /> Settings
         </h2>
-        <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Platform configuration and session info.</p>
+        <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          Platform configuration and session info.
+        </p>
       </div>
+
       <div className="grid-2" style={{ gap: 16 }}>
         {[
-          { title: 'Active Session', items: [['User', user?.name || '—'], ['Email', user?.email || '—'], ['Role', user?.role || '—'], ['ID', user?.id || '—']] },
-          { title: 'Backend API', items: [['Endpoint', 'http://localhost:8000'], ['Version', 'v3.0.0'], ['Status', '✅ Operational'], ['Auth', 'JWT (8h TTL)']] },
-          { title: 'Analysis Engine', items: [['Classifier', 'Rule-based NLP (10-dim)'], ['Score Range', '0–100'], ['DB', 'SQLite'], ['Clustering', 'Union-Find']] },
-          { title: 'Integrations', items: [['Geolocation', 'ipinfo.io'], ['DNS', 'dnspython'], ['PDF', 'reportlab (optional)'], ['IMAP', 'Phase 4']] },
+          {
+            title: 'Active Session',
+            items: [
+              ['User', user?.name || '—'],
+              ['Email', user?.email || '—'],
+              ['Role', user?.role || '—'],
+              ['ID', user?.id || '—'],
+            ],
+          },
+          {
+            title: 'Backend API',
+            items: [
+              ['Endpoint', API],
+              ['Version', 'v3.0.0'],
+              ['Status', '✅ Operational'],
+              ['Auth', 'JWT (8h TTL)'],
+            ],
+          },
+          {
+            title: 'Analysis Engine',
+            items: [
+              ['Classifier', 'Rule-based NLP (10-dim)'],
+              ['Score Range', '0–100'],
+              ['DB', 'PostgreSQL'],
+              ['Clustering', 'Union-Find'],
+            ],
+          },
+          {
+            title: 'Integrations',
+            items: [
+              ['Geolocation', 'ipinfo.io'],
+              ['DNS', 'dnspython'],
+              ['PDF', 'reportlab'],
+              ['Gmail', 'Google OAuth'],
+            ],
+          },
         ].map(group => (
           <div key={group.title} className="card" style={{ padding: '16px 20px' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>{group.title}</div>
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: 'var(--accent)',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              marginBottom: 12
+            }}>
+              {group.title}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {group.items.map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                <div key={k} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.82rem'
+                }}>
                   <span style={{ color: 'var(--text-muted)' }}>{k}</span>
-                  <span style={{ color: 'var(--text-secondary)', fontFamily: ['Endpoint', 'DB', 'ID'].includes(k) ? 'monospace' : 'inherit', fontSize: ['Endpoint', 'ID'].includes(k) ? '0.73rem' : 'inherit' }}>{v}</span>
+                  <span style={{
+                    color: 'var(--text-secondary)',
+                    fontFamily: ['Endpoint', 'DB', 'ID'].includes(k) ? 'monospace' : 'inherit',
+                    fontSize: ['Endpoint', 'ID'].includes(k) ? '0.73rem' : 'inherit'
+                  }}>
+                    {v}
+                  </span>
                 </div>
               ))}
             </div>
@@ -92,35 +256,165 @@ function SettingsPage({ user }) {
         ))}
       </div>
 
-      {/* IMAP Connector Card */}
+      {/* Gmail Integration */}
       <div className="card" style={{ padding: '20px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <Server size={16} color="var(--accent)" />
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>IMAP Connector</div>
-          <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '2px 8px', borderRadius: 100, background: 'rgba(255,165,2,0.12)', color: '#ffa502', border: '1px solid rgba(255,165,2,0.3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Phase 4</span>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          marginBottom: 6
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Server size={16} color="var(--accent)" />
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: 'var(--accent)',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase'
+            }}>
+              Gmail Integration
+            </div>
+
+            <span style={{
+              fontSize: '0.62rem',
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: 100,
+              background: gmailStatus.connected
+                ? 'rgba(46, 204, 113, 0.12)'
+                : 'rgba(255,165,2,0.12)',
+              color: gmailStatus.connected ? '#2ecc71' : '#ffa502',
+              border: `1px solid ${gmailStatus.connected ? 'rgba(46, 204, 113, 0.3)' : 'rgba(255,165,2,0.3)'}`,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em'
+            }}>
+              {gmailStatus.loading
+                ? 'Checking'
+                : gmailStatus.connected
+                  ? 'Connected'
+                  : 'Not Connected'}
+            </span>
+          </div>
         </div>
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 16 }}>Connect a mailbox to automatically ingest and analyze incoming emails in real-time.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 10, alignItems: 'flex-end' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>IMAP Host</label>
-            <input value={imapHost} onChange={e => setImapHost(e.target.value)}
-              placeholder="imap.gmail.com" className="input" style={{ fontSize: '0.82rem' }} />
+
+        <p style={{
+          fontSize: '0.78rem',
+          color: 'var(--text-muted)',
+          marginBottom: 16
+        }}>
+          Connect Google Gmail using OAuth and securely ingest mailbox messages
+          into the forensic analysis pipeline.
+        </p>
+
+        {gmailStatus.connected && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '10px 12px',
+            marginBottom: 14,
+            borderRadius: 8,
+            background: 'var(--accent-dim)',
+            border: '1px solid var(--border-subtle)'
+          }}>
+            <div>
+              <div style={{
+                fontSize: '0.68rem',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginBottom: 3
+              }}>
+                Connected Account
+              </div>
+
+              <div style={{
+                fontSize: '0.85rem',
+                color: 'var(--text-primary)',
+                fontWeight: 600
+              }}>
+                {gmailStatus.google_email || 'Google account connected'}
+              </div>
+            </div>
+
+            <button
+              onClick={syncGmail}
+              disabled={syncing}
+              style={{
+                padding: '9px 18px',
+                borderRadius: 8,
+                background: syncing ? 'var(--border-subtle)' : 'var(--accent)',
+                border: '1px solid var(--accent)',
+                color: syncing ? 'var(--text-muted)' : '#fff',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: syncing ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {syncing ? 'Syncing Gmail…' : '↻ Sync Gmail'}
+            </button>
           </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Username</label>
-            <input value={imapUser} onChange={e => setImapUser(e.target.value)}
-              placeholder="analyst@company.com" className="input" style={{ fontSize: '0.82rem' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>App Password</label>
-            <input type="password" value={imapPass} onChange={e => setImapPass(e.target.value)}
-              placeholder="•••••••••••••" className="input" style={{ fontSize: '0.82rem' }} />
-          </div>
-          <button onClick={() => toast.push('IMAP connector is coming in Phase 4 — stay tuned!', 'info')}
-            style={{ padding: '9px 18px', borderRadius: 8, background: 'var(--accent-dim)', border: '1px solid var(--accent)', color: 'var(--accent)', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            Connect
+        )}
+
+        {!gmailStatus.connected && !gmailStatus.loading && (
+          <button
+            onClick={connectGmail}
+            style={{
+              padding: '10px 20px',
+              borderRadius: 8,
+              background: 'var(--accent-dim)',
+              border: '1px solid var(--accent)',
+              color: 'var(--accent)',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              cursor: 'pointer'
+            }}
+          >
+            Connect Gmail with Google
           </button>
-        </div>
+        )}
+
+        {syncResult && (
+          <div style={{
+            marginTop: 14,
+            padding: 14,
+            borderRadius: 8,
+            background: 'rgba(46, 204, 113, 0.06)',
+            border: '1px solid rgba(46, 204, 113, 0.2)'
+          }}>
+            <div style={{
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              color: 'var(--accent)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: 10
+            }}>
+              Last Sync
+            </div>
+
+            <div style={{
+              display: 'flex',
+              gap: 24,
+              flexWrap: 'wrap',
+              fontSize: '0.82rem'
+            }}>
+              <span>
+                <strong>{syncResult.imported_count || 0}</strong> Imported
+              </span>
+              <span>
+                <strong>{syncResult.skipped_count || 0}</strong> Skipped
+              </span>
+              <span>
+                <strong>{syncResult.failed_count || 0}</strong> Failed
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

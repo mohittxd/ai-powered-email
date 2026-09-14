@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from core.config import settings
 from core.database import init_db
 from core.logging_config import setup_logging
-from api.routes import emails, cases, reports, iocs, audit, auth, users, campaigns, health
+from api.routes import emails, email_detail, cases, reports, iocs, audit, auth, users, campaigns, health, gmail, gmail_sync
 
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,7 @@ API_PREFIX = "/api/v1"
 
 app.include_router(health.router,    prefix=API_PREFIX, tags=["Health"])
 app.include_router(emails.router,    prefix=API_PREFIX, tags=["Email Analysis"])
+app.include_router(email_detail.router, prefix=API_PREFIX, tags=["Email Database"])
 app.include_router(cases.router,     prefix=API_PREFIX, tags=["Case Management"])
 app.include_router(reports.router,   prefix=API_PREFIX, tags=["Reports"])
 app.include_router(iocs.router,      prefix=API_PREFIX, tags=["IOC Database"])
@@ -88,7 +89,8 @@ app.include_router(audit.router,     prefix=API_PREFIX, tags=["Audit Log"])
 app.include_router(auth.router,      prefix=API_PREFIX, tags=["Auth"])
 app.include_router(users.router,     prefix=API_PREFIX, tags=["User & System Management"])
 app.include_router(campaigns.router, prefix=API_PREFIX, tags=["Campaigns"])
-
+app.include_router(gmail.router, prefix="/api", tags=["Gmail Integration"])
+app.include_router(gmail_sync.router, prefix="/api", tags=["Gmail Sync"])
 
 
 # ── Root ──────────────────────────────────────────────────────────────────────

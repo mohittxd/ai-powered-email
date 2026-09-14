@@ -14,7 +14,7 @@ import ipaddress
 import logging
 import re
 from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
+from services.datetime_utils import normalize_datetime
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -104,10 +104,9 @@ def _parse_hop(raw: str, index: int) -> dict:
     if date_m:
         raw_date = re.sub(r'\s*\(.*?\)\s*$', '', date_m.group(1)).strip()
         timestamp = raw_date
-        try:
-            timestamp_dt = parsedate_to_datetime(raw_date)
-        except Exception:
-            pass
+        # Normalize to a timezone-aware UTC datetime. normalize_datetime handles
+        # parsing and returns None for malformed/unknown formats.
+        timestamp_dt = normalize_datetime(raw_date)
 
     malformed = source_host is None and dest_host is None
 
