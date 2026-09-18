@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from core.database import get_db
 from core.models import IOC
+from core.models import Email
+from core.rbac import get_current_user
 
 router = APIRouter()
 
@@ -17,8 +19,9 @@ async def list_iocs(
     skip: int = 0,
     limit: int = 200,
     db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
 ):
-    stmt = select(IOC)
+    stmt = select(IOC).join(Email, IOC.email_id == Email.id).where(Email.owner_id == user.id)
     if ioc_type:
         stmt = stmt.where(IOC.ioc_type == ioc_type)
     if risk_level:
@@ -40,14 +43,14 @@ async def list_iocs(
 
 
 @router.get("/iocs/stats", summary="Aggregate IOC statistics")
-async def ioc_stats(db: AsyncSession = Depends(get_db)):
+async def ioc_stats(db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
     # Total count
-    total_result = await db.execute(select(func.count()).select_from(IOC))
+    total_result = await db.execute(select(func.count()).select_from(IOC).join(Email).where(Email.owner_id == user.id))
     total = total_result.scalar() or 0
 
     # By type
     type_result = await db.execute(
-        select(IOC.ioc_type, func.count().label("cnt"))
+        select(IOC.ioc_type, func.count().label("cnt")).join(Email).where(Email.owner_id == user.id)
         .group_by(IOC.ioc_type)
         .order_by(func.count().desc())
     )
@@ -55,7 +58,7 @@ async def ioc_stats(db: AsyncSession = Depends(get_db)):
 
     # By risk
     risk_result = await db.execute(
-        select(IOC.risk_level, func.count().label("cnt"))
+        select(IOC.risk_level, func.count().label("cnt")).join(Email).where(Email.owner_id == user.id)
         .group_by(IOC.risk_level)
         .order_by(func.count().desc())
     )
@@ -63,7 +66,7 @@ async def ioc_stats(db: AsyncSession = Depends(get_db)):
 
     # Critical count
     crit_result = await db.execute(
-        select(func.count()).select_from(IOC).where(IOC.risk_level == "critical")
+        select(func.count()).select_from(IOC).join(Email).where(Email.owner_id == user.id, IOC.risk_level == "critical")
     )
     critical = crit_result.scalar() or 0
 
@@ -80,9 +83,10 @@ async def search_iocs(
     q: str = Query(..., min_length=2),
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
 ):
     result = await db.execute(
-        select(IOC)
+        select(IOC).join(Email, IOC.email_id == Email.id).where(Email.owner_id == user.id)
         .where(IOC.value.contains(q))
         .order_by(IOC.id.desc())
         .limit(limit)

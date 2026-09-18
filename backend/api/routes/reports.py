@@ -9,12 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from core.database import get_db
 from core.models import Email, TraceHop, IOC, AuditLog, Case, AnalysisResult
+from core.rbac import get_current_user
 
 router = APIRouter()
 
 
-async def _build_full_report(email_id: str, db: AsyncSession) -> dict:
-    result = await db.execute(select(Email).where(Email.id == email_id))
+async def _build_full_report(email_id: str, db: AsyncSession, owner_id: str | None = None) -> dict:
+    stmt = select(Email).where(Email.id == email_id)
+    if owner_id:
+        stmt = stmt.where(Email.owner_id == owner_id)
+    result = await db.execute(stmt)
     em = result.scalar_one_or_none()
     if not em:
         raise HTTPException(404, "Email not found")
@@ -43,7 +47,7 @@ async def _build_full_report(email_id: str, db: AsyncSession) -> dict:
             "generated_at": datetime.utcnow().isoformat(),
             "email_id": email_id,
             "sha256_hash": em.sha256_hash,
-            "platform": "EmailForensics v3.0.0 (Phase 14 AI)",
+            "platform": "Forensic AI v3.0.0",
         },
         "email": {
             "case_id": em.case_id,
@@ -96,12 +100,12 @@ async def _build_full_report(email_id: str, db: AsyncSession) -> dict:
 
 
 @router.get("/emails/{email_id}/report.json", summary="Export forensic report as JSON")
-async def export_json_report(email_id: str, analyst_id: str | None = None, db: AsyncSession = Depends(get_db)):
-    report = await _build_full_report(email_id, db)
+async def export_json_report(email_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    report = await _build_full_report(email_id, db, user.id)
 
     # Audit
     db.add(AuditLog(
-        analyst_id=analyst_id,
+        analyst_id=user.id,
         action="REPORT_EXPORT",
         resource_type="email",
         resource_id=email_id,
@@ -116,13 +120,13 @@ from services.pdf_generator import generate_forensic_pdf
 
 
 @router.get("/emails/{email_id}/report.pdf", summary="Export forensic report as PDF")
-async def export_pdf_report(email_id: str, analyst_id: str | None = None, db: AsyncSession = Depends(get_db)):
+async def export_pdf_report(email_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
     """Generate a professional PDF forensic report using ReportLab."""
-    report = await _build_full_report(email_id, db)
+    report = await _build_full_report(email_id, db, user.id)
     pdf_bytes = generate_forensic_pdf(report)
 
     db.add(AuditLog(
-        analyst_id=analyst_id,
+        analyst_id=user.id,
         action="REPORT_EXPORT",
         resource_type="email",
         resource_id=email_id,
@@ -139,20 +143,21 @@ async def export_pdf_report(email_id: str, analyst_id: str | None = None, db: As
 
 
 @router.get("/stats/overview", summary="Platform-wide statistics")
-async def stats_overview(db: AsyncSession = Depends(get_db)):
-    total_emails = (await db.execute(select(func.count()).select_from(Email))).scalar() or 0
-    total_iocs = (await db.execute(select(func.count()).select_from(IOC))).scalar() or 0
-    total_cases = (await db.execute(select(func.count()).select_from(Case))).scalar() or 0
-    total_audits = (await db.execute(select(func.count()).select_from(AuditLog))).scalar() or 0
+async def stats_overview(db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    owned = Email.owner_id == user.id
+    total_emails = (await db.execute(select(func.count()).select_from(Email).where(owned))).scalar() or 0
+    total_iocs = (await db.execute(select(func.count()).select_from(IOC).join(Email).where(owned))).scalar() or 0
+    total_cases = (await db.execute(select(func.count()).select_from(Case).where(Case.analyst_id == user.id))).scalar() or 0
+    total_audits = (await db.execute(select(func.count()).select_from(AuditLog).where(AuditLog.analyst_id == user.id))).scalar() or 0
 
     critical_iocs = (
         await db.execute(
-            select(func.count()).select_from(IOC).where(IOC.risk_level == "critical")
+            select(func.count()).select_from(IOC).join(Email).where(owned, IOC.risk_level == "critical")
         )
     ).scalar() or 0
 
     # Average fraud score
-    avg_result = await db.execute(select(func.avg(Email.fraud_score)))
+    avg_result = await db.execute(select(func.avg(Email.fraud_score)).where(owned))
     raw_avg_score = avg_result.scalar() or 0
 
     # Database may contain either 0–1 or 0–100 scores.
@@ -167,7 +172,7 @@ async def stats_overview(db: AsyncSession = Depends(get_db)):
     # Classification distribution
     class_result = await db.execute(
         select(Email.classification, func.count().label("cnt"))
-        .where(Email.classification.isnot(None))
+        .where(owned, Email.classification.isnot(None))
         .group_by(Email.classification)
         .order_by(func.count().desc())
     )

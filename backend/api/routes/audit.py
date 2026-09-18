@@ -1,24 +1,24 @@
 """
 Audit Log routes — immutable chain-of-custody action log.
-Protected by ADMIN role permissions; logs ADMIN_ACTION.
+All authenticated users may view the audit log; admins may also
+query statistics.  Viewing does not create a recursive audit entry.
 """
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from core.database import get_db
 from core.models import AuditLog
-from core.rbac import require_roles, record_audit_log, AuthenticatedUser
+from core.rbac import get_current_user
 
 router = APIRouter()
 
 
-@router.get("/audit", summary="List audit log entries (ADMIN only)")
+@router.get("/audit", summary="List audit log entries")
 async def list_audit(
     skip: int = 0,
     limit: int = 100,
-    request: Request = None,
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_roles(["ADMIN"]))
+    current_user=Depends(get_current_user),
 ):
     result = await db.execute(
         select(AuditLog)
@@ -27,16 +27,6 @@ async def list_audit(
         .limit(limit)
     )
     logs = result.scalars().all()
-
-    client_ip = request.client.host if request and request.client else "127.0.0.1"
-    await record_audit_log(
-        db=db,
-        action="ADMIN_ACTION",
-        analyst_id=current_user.id,
-        resource_type="audit",
-        ip_address=client_ip,
-        detail=f"Retrieved audit log entries (limit={limit}, skip={skip})"
-    )
 
     return [
         {
@@ -53,10 +43,10 @@ async def list_audit(
     ]
 
 
-@router.get("/audit/stats", summary="Audit log statistics (ADMIN only)")
+@router.get("/audit/stats", summary="Audit log statistics")
 async def audit_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: AuthenticatedUser = Depends(require_roles(["ADMIN"]))
+    current_user=Depends(get_current_user),
 ):
     total_result = await db.execute(select(func.count()).select_from(AuditLog))
     total = total_result.scalar() or 0

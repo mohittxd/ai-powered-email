@@ -195,7 +195,7 @@ async def get_system_config(
         detail="Viewed system configuration parameters"
     )
     return {
-        "app_name": "ForensicAI Incident Response",
+        "app_name": "Forensic AI Incident Response",
         "version": "3.0.0",
         "rbac_enforced": True,
         "supported_roles": ["ANALYST", "INVESTIGATOR", "ADMIN"],

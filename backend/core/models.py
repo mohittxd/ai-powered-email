@@ -31,6 +31,10 @@ class User(Base):
     )
     hashed_password: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    google_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
+    profile_picture: Mapped[Optional[str]] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
     cases: Mapped[list["Case"]] = relationship("Case", back_populates="analyst")
     audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="analyst")
@@ -87,6 +91,10 @@ class Email(Base):
     __tablename__ = "emails"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    owner_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    gmail_message_id: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    gmail_thread_id: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    gmail_labels: Mapped[Optional[list]] = mapped_column(JSON)
     case_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("cases.id"))
     sha256_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     raw_storage_path: Mapped[Optional[str]] = mapped_column(Text)
@@ -111,6 +119,7 @@ class Email(Base):
     analyzed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
     case: Mapped[Optional["Case"]] = relationship("Case", back_populates="emails")
+    owner: Mapped[Optional["User"]] = relationship("User")
     trace_hops: Mapped[list["TraceHop"]] = relationship("TraceHop", back_populates="email")
     iocs: Mapped[list["IOC"]] = relationship("IOC", back_populates="email")
     auth_results: Mapped[list["AuthenticationResult"]] = relationship("AuthenticationResult", back_populates="email")
@@ -288,6 +297,8 @@ class GmailConnection(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+    last_sync_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    last_sync_stats: Mapped[Optional[dict]] = mapped_column(JSON)
 
     user: Mapped["User"] = relationship(
         "User",

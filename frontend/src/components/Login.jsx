@@ -1,220 +1,192 @@
-import { useState, useEffect } from 'react'
-import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
+import { Eye, EyeOff, Shield } from 'lucide-react'
 import api from '../services/api'
 
-const DEMO_ACCOUNTS = [
-  { email: 'admin@forensics.local',       password: 'admin123',   role: 'Admin',        color: '#f44336' },
-  { email: 'analyst@forensics.local',     password: 'analyst123', role: 'Analyst',      color: 'var(--accent)' },
-  { email: 'investigator@forensics.local',password: 'ir2026',     role: 'Investigator', color: '#ff9800' },
-]
-
 export default function Login({ onLogin }) {
-  const [email, setEmail] = useState('analyst@forensics.local')
-  const [password, setPassword] = useState('analyst123')
-  const [showPw, setShowPw] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [particles] = useState(() =>
-    Array.from({ length: 18 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      dur: Math.random() * 8 + 6,
-      delay: Math.random() * 4,
-    }))
-  )
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [fieldError, setFieldError] = useState('')
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+  const getErrorMessage = (err, fallback) =>
+    err.response?.data?.detail || err.response?.data?.error || fallback
+  const [error, setError] = useState('')
+
+  const continueWithGoogle = async () => {
+    setGoogleLoading(true)
     try {
-      const res = await api.post('/auth/login', { email, password })
-      const { access_token, user } = res.data
-      localStorage.setItem('ef_token', access_token)
-      localStorage.setItem('ef_user', JSON.stringify(user))
-      onLogin(user)
+      const { data } = await api.get('/auth/google')
+      window.location.assign(data.authorization_url)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid credentials')
-    } finally {
-      setLoading(false)
+      console.error('Google authentication unavailable', err)
+      setError(getErrorMessage(err, 'Google authentication is unavailable.'))
+      setGoogleLoading(false)
     }
   }
 
-  const fillDemo = (account) => {
-    setEmail(account.email)
-    setPassword(account.password)
-    setError(null)
+  const loginWithPassword = async (event) => {
+    event.preventDefault()
+    setPasswordLoading(true)
+    setError('')
+    setFieldError('')
+    if (!email.trim() || !password) {
+      setFieldError('Enter both your email address and password.')
+      setPasswordLoading(false)
+      return
+    }
+    try {
+      const data = await api.post('/auth/login', { email, password }).then(res => res.data)
+      localStorage.setItem('ef_token', data.access_token)
+      onLogin(data.user)
+    } catch (err) {
+      setError(getErrorMessage(err, 'Unable to sign in. Please check your credentials and try again.'))
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  const submitRegistration = async (event) => {
+    event.preventDefault()
+    setPasswordLoading(true)
+    setError('')
+    setFieldError('')
+    if (!name.trim() || !email.trim() || !password) {
+      setFieldError('Enter your name, email address, and password.')
+      setPasswordLoading(false)
+      return
+    }
+    if (password.length < 8) {
+      setFieldError('Password must be at least 8 characters.')
+      setPasswordLoading(false)
+      return
+    }
+    if (password !== confirmPassword) {
+      setFieldError('Passwords do not match.')
+      setPasswordLoading(false)
+      return
+    }
+    try {
+      const data = await api.post('/auth/register', { name, email, password }).then(res => res.data)
+      localStorage.setItem('ef_token', data.access_token)
+      onLogin(data.user)
+    } catch (err) {
+      setError(getErrorMessage(err, 'Unable to create your account.'))
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  const switchMode = (registering) => {
+    setIsRegistering(registering)
+    setError('')
+    setFieldError('')
+  }
+
+  const clearFieldErrors = () => {
+    setFieldError('')
+    setError('')
   }
 
   return (
     <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg-primary)', position: 'relative', overflow: 'hidden',
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg-primary)',
+      padding: 20,
     }}>
-      {/* Animated background particles */}
-      {particles.map(p => (
-        <div key={p.id} style={{
-          position: 'absolute', left: `${p.x}%`, top: `${p.y}%`,
-          width: p.size, height: p.size, borderRadius: '50%',
-          background: 'var(--accent)', opacity: 0.15,
-          animation: `float ${p.dur}s ease-in-out ${p.delay}s infinite alternate`,
-        }} />
-      ))}
-
-      {/* Glow blobs */}
-      <div style={{ position: 'absolute', top: '10%', left: '5%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,230,118,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: '5%', right: '8%', width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(circle, rgba(244,67,54,0.05) 0%, transparent 70%)', pointerEvents: 'none' }} />
-
-      <div style={{
-        width: '100%', maxWidth: 420, padding: '0 20px', position: 'relative', zIndex: 1,
-      }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+      <div style={{ width: '100%', maxWidth: 760 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 56, height: 56, borderRadius: 16,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 56,
+            height: 56,
+            borderRadius: 16,
             background: 'linear-gradient(135deg, #00e676, #00b0ff)',
-            marginBottom: 16, boxShadow: '0 0 30px rgba(0,230,118,0.3)',
+            marginBottom: 16,
           }}>
             <Shield size={28} color="#000" />
           </div>
-          <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            EmailForensics
+          <h1 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.6rem' }}>
+            Forensic AI
           </h1>
-          <p style={{ margin: '6px 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            AI-Powered Threat Intelligence Platform
+          <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            Email evidence and forensic intelligence
           </p>
         </div>
 
-        {/* Card */}
-        <div style={{
-          background: 'var(--surface-1)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          padding: '28px 28px 24px',
-          backdropFilter: 'blur(20px)',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,230,118,0.08)',
-        }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 20, textAlign: 'center', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            🔒 Authorized Personnel Only
-          </div>
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Email Address
-              </label>
-              <input
-                id="login-email"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                autoFocus
-                style={{
-                  width: '100%', padding: '11px 14px', borderRadius: 10, boxSizing: 'border-box',
-                  background: 'var(--surface-2)', border: '1px solid var(--border)',
-                  color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none',
-                  transition: 'border-color 0.2s',
-                }}
-                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border)'}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Password
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="login-password"
-                  type={showPw ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  style={{
-                    width: '100%', padding: '11px 42px 11px 14px', borderRadius: 10, boxSizing: 'border-box',
-                    background: 'var(--surface-2)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
-                />
-                <button type="button" onClick={() => setShowPw(v => !v)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+        <div className="card login-card" style={{ padding: 28 }}>
+          <div className="login-options login-options-vertical">
+            <form onSubmit={isRegistering ? submitRegistration : loginWithPassword}>
+              <h2 className="login-option-title">{isRegistering ? 'Create your account' : 'Sign in with Email'}</h2>
+              {isRegistering && (
+                <>
+                  <label className="login-label" htmlFor="register-name">Full name</label>
+                  <input id="register-name" className="login-input" type="text" value={name}
+                    onChange={(event) => { setName(event.target.value); clearFieldErrors() }}
+                    placeholder="Your name" autoComplete="name" required />
+                </>
+              )}
+              <label className="login-label" htmlFor="login-email">Email address</label>
+              <input id="login-email" className="login-input" type="email" value={email}
+                onChange={(event) => { setEmail(event.target.value); clearFieldErrors() }} placeholder="you@company.com"
+                autoComplete="email" required />
+              <label className="login-label" htmlFor="login-password">Password</label>
+              <div className="password-field">
+                <input id="login-password" className="login-input" type={showPassword ? 'text' : 'password'}
+                  value={password} onChange={(event) => { setPassword(event.target.value); clearFieldErrors() }}
+                  placeholder="Enter your password" autoComplete={isRegistering ? 'new-password' : 'current-password'} required />
+                <button type="button" className="password-toggle" onClick={() => setShowPassword(value => !value)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-            </div>
-
-            {error && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, background: 'rgba(244,67,54,0.12)', border: '1px solid rgba(244,67,54,0.3)', color: 'var(--critical)', fontSize: '0.82rem' }}>
-                <AlertCircle size={14} /> {error}
-              </div>
-            )}
-
-            <button
-              id="login-submit"
-              type="submit"
-              disabled={loading}
-              style={{
-                marginTop: 4, padding: '12px', borderRadius: 10, border: 'none',
-                background: loading ? 'var(--surface-2)' : 'linear-gradient(135deg, #00e676, #00b0ff)',
-                color: loading ? 'var(--text-muted)' : '#000',
-                fontWeight: 800, fontSize: '0.9rem', cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s', letterSpacing: '0.03em',
-                boxShadow: loading ? 'none' : '0 4px 20px rgba(0,230,118,0.3)',
-              }}
-            >
-              {loading ? 'Authenticating…' : '→ Sign In'}
-            </button>
-          </form>
-        </div>
-
-        {/* Demo accounts */}
-        <div style={{ marginTop: 20 }}>
-          <div style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            Demo Accounts — click to fill
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {DEMO_ACCOUNTS.map(acc => (
-              <button key={acc.email} onClick={() => fillDemo(acc)}
-                style={{
-                  padding: '10px 14px', borderRadius: 10, background: 'var(--surface-1)',
-                  border: `1px solid var(--border)`, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = acc.color; e.currentTarget.style.background = 'var(--surface-2)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface-1)' }}
-              >
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 600 }}>{acc.email}</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>pw: {acc.password}</div>
-                </div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 10px', borderRadius: 100, background: `${acc.color}22`, color: acc.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  {acc.role}
-                </span>
+              {isRegistering && (
+                <>
+                  <label className="login-label" htmlFor="register-confirm-password">Confirm password</label>
+                  <input id="register-confirm-password" className="login-input" type={showPassword ? 'text' : 'password'}
+                    value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); clearFieldErrors() }}
+                    placeholder="Re-enter your password" autoComplete="new-password" required />
+                </>
+              )}
+              {(fieldError || error) && <p className="login-error" role="alert">{fieldError || error}</p>}
+              <button type="submit" disabled={passwordLoading || googleLoading} className="login-submit">
+                {passwordLoading ? (isRegistering ? 'Creating account…' : 'Signing in…') : (isRegistering ? 'Create account' : 'Sign in')}
               </button>
-            ))}
+            </form>
+            {!isRegistering && (
+              <button type="button" className="login-link" onClick={() => switchMode(true)}>
+                Create account
+              </button>
+            )}
+            <div className="login-divider" aria-hidden="true"><span>OR</span></div>
+            <div className="google-option">
+              <h2 className="login-option-title">Continue with Google</h2>
+              <p className="login-option-copy">Use your verified Google identity. Gmail mailbox access is requested separately.</p>
+              <button type="button" onClick={continueWithGoogle} disabled={googleLoading || passwordLoading} className="google-button">
+                {googleLoading ? 'Redirecting…' : 'Continue with Google'}
+              </button>
+            </div>
+            {isRegistering && (
+              <p className="login-switch">
+                Already registered?
+                {' '}
+                <button type="button" className="login-link login-switch-button" onClick={() => switchMode(false)}>
+                  Sign in
+                </button>
+              </p>
+            )}
           </div>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-          EmailForensics v3.0.0 · Defensive Use Only · SOC / Legal / IR
         </div>
       </div>
-
-      <style>{`
-        @keyframes float {
-          from { transform: translateY(0px) scale(1); opacity: 0.12; }
-          to   { transform: translateY(-20px) scale(1.3); opacity: 0.22; }
-        }
-      `}</style>
     </div>
   )
 }

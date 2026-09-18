@@ -9,6 +9,7 @@ from sqlalchemy import select, func, or_, cast, String
 from core.database import get_db
 from core.models import Case, Email, TraceHop, AuditLog
 from api.schemas import CaseCreate, CaseResponse
+from core.rbac import get_current_user
 
 # Import pipelines for report generation
 import os
@@ -28,11 +29,11 @@ router = APIRouter()
 
 
 @router.post("/cases", response_model=CaseResponse, summary="Create a new investigation case")
-async def create_case(payload: CaseCreate, db: AsyncSession = Depends(get_db)):
+async def create_case(payload: CaseCreate, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
     case = Case(
         id=str(uuid.uuid4()),
         title=payload.title,
-        analyst_id=payload.analyst_id,
+        analyst_id=user.id,
         status="open",
         created_at=datetime.utcnow(),
     )
@@ -59,9 +60,10 @@ async def list_cases(
     ip: Optional[str] = None,
     date: Optional[str] = None,
     classification: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
 ):
-    stmt = select(Case)
+    stmt = select(Case).where(Case.analyst_id == user.id)
     
     if any([sender, domain, ip, classification]):
         stmt = stmt.outerjoin(Email, Email.case_id == Case.id)
@@ -107,19 +109,22 @@ async def list_cases(
 
 
 @router.get("/cases/{case_id}", summary="Get a single case with its emails")
-async def get_case(case_id: str, analyst_id: str | None = None, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Case).where(Case.id == case_id))
+async def get_case(case_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    result = await db.execute(select(Case).where(Case.id == case_id, Case.analyst_id == user.id))
     case = result.scalar_one_or_none()
     if not case:
         raise HTTPException(404, "Case not found")
 
     emails_result = await db.execute(
-        select(Email).where(Email.case_id == case_id).order_by(Email.analyzed_at.desc())
+        select(Email).where(
+            Email.case_id == case_id,
+            Email.owner_id == user.id,
+        ).order_by(Email.analyzed_at.desc())
     )
     emails = emails_result.scalars().all()
     
     db.add(AuditLog(
-        analyst_id=analyst_id,
+        analyst_id=user.id,
         action="CASE_VIEW",
         resource_type="case",
         resource_id=case_id,
@@ -147,11 +152,11 @@ async def get_case(case_id: str, analyst_id: str | None = None, db: AsyncSession
 
 
 @router.patch("/cases/{case_id}/status", summary="Update case status")
-async def update_case_status(case_id: str, status: str, db: AsyncSession = Depends(get_db)):
+async def update_case_status(case_id: str, status: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
     valid = {"open", "closed", "escalated"}
     if status not in valid:
         raise HTTPException(400, f"Status must be one of {valid}")
-    result = await db.execute(select(Case).where(Case.id == case_id))
+    result = await db.execute(select(Case).where(Case.id == case_id, Case.analyst_id == user.id))
     case = result.scalar_one_or_none()
     if not case:
         raise HTTPException(404, "Case not found")
@@ -168,8 +173,8 @@ async def update_case_status(case_id: str, status: str, db: AsyncSession = Depen
 
 
 @router.delete("/cases/{case_id}", summary="Delete a case")
-async def delete_case(case_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Case).where(Case.id == case_id))
+async def delete_case(case_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    result = await db.execute(select(Case).where(Case.id == case_id, Case.analyst_id == user.id))
     case = result.scalar_one_or_none()
     if not case:
         raise HTTPException(404, "Case not found")
@@ -179,12 +184,12 @@ async def delete_case(case_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/cases/{case_id}/emails/{email_id}", summary="Link an email to a case")
-async def link_email_to_case(case_id: str, email_id: str, db: AsyncSession = Depends(get_db)):
-    case_result = await db.execute(select(Case).where(Case.id == case_id))
+async def link_email_to_case(case_id: str, email_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    case_result = await db.execute(select(Case).where(Case.id == case_id, Case.analyst_id == user.id))
     case = case_result.scalar_one_or_none()
     if not case:
         raise HTTPException(404, "Case not found")
-    email_result = await db.execute(select(Email).where(Email.id == email_id))
+    email_result = await db.execute(select(Email).where(Email.id == email_id, Email.owner_id == user.id))
     email = email_result.scalar_one_or_none()
     if not email:
         raise HTTPException(404, "Email not found")
@@ -194,15 +199,20 @@ async def link_email_to_case(case_id: str, email_id: str, db: AsyncSession = Dep
 
 
 @router.get("/cases/{case_id}/report", summary="Generate a comprehensive forensic report JSON")
-async def generate_case_report(case_id: str, db: AsyncSession = Depends(get_db)):
+async def generate_case_report(case_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
     """Phase 8 — Complete forensic report generation."""
-    case_result = await db.execute(select(Case).where(Case.id == case_id))
+    case_result = await db.execute(
+        select(Case).where(Case.id == case_id, Case.analyst_id == user.id)
+    )
     case = case_result.scalar_one_or_none()
     if not case:
         raise HTTPException(404, "Case not found")
 
     email_result = await db.execute(
-        select(Email).where(Email.case_id == case_id).order_by(Email.analyzed_at.desc())
+        select(Email).where(
+            Email.case_id == case_id,
+            Email.owner_id == user.id,
+        ).order_by(Email.analyzed_at.desc())
     )
     email = email_result.scalars().first()
     if not email or not email.raw_storage_path:
@@ -288,13 +298,13 @@ async def generate_case_report(case_id: str, db: AsyncSession = Depends(get_db))
 
 
 @router.get("/cases/{case_id}/report/pdf", summary="Generate a professional PDF forensic report for a case")
-async def generate_case_report_pdf(case_id: str, analyst_id: str | None = None, db: AsyncSession = Depends(get_db)):
+async def generate_case_report_pdf(case_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
     """Phase 17 — Professional forensic PDF report generation."""
-    report_dict = await generate_case_report(case_id, db)
+    report_dict = await generate_case_report(case_id, db, user)
     pdf_bytes = generate_forensic_pdf(report_dict)
 
     db.add(AuditLog(
-        analyst_id=analyst_id,
+        analyst_id=user.id,
         action="REPORT_EXPORT",
         resource_type="case",
         resource_id=case_id,
@@ -307,4 +317,3 @@ async def generate_case_report_pdf(case_id: str, analyst_id: str | None = None, 
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="forensic_report_case_{case_id[:8]}.pdf"'},
     )
-

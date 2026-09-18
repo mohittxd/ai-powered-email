@@ -41,3 +41,14 @@ Thumbs.db
 # Python virtual environments
 **/.venv/
 **/venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Generated reports / diagnostics
+ml/reports/
+opencode_diagnosis.txt

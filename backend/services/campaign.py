@@ -10,15 +10,15 @@ from services.campaign_graph import build_global_campaign_graph, compute_campaig
 logger = logging.getLogger(__name__)
 
 
-async def cluster_emails_by_iocs(db) -> List[Dict[str, Any]]:
+async def cluster_emails_by_iocs(db, owner_id: str | None = None) -> List[Dict[str, Any]]:
     """
     Executes Phase 21 NetworkX campaign correlation algorithm.
     Groups related email evidence and identifies shared infrastructure components.
     """
     try:
-        G = await build_global_campaign_graph(db)
+        G = await build_global_campaign_graph(db, owner_id)
         campaigns = compute_campaign_correlation(G)
         return campaigns
     except Exception as exc:
         logger.exception("Error executing NetworkX campaign correlation: %s", exc)
-        return []
+        raise RuntimeError(f"Campaign correlation failed: {exc}") from exc

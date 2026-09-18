@@ -84,9 +84,38 @@ def test_pdf_generator_directly():
 
 @pytest.mark.asyncio
 async def test_case_pdf_report_endpoint():
+    from core.database import AsyncSessionLocal
+    from core.models import User
+    from core.rbac import hash_password
+
+    async with AsyncSessionLocal() as db:
+        user = User(
+            id="pdf-test-user",
+            email="pdf_test@example.com",
+            name="PDF Test User",
+            role="analyst",
+            hashed_password=hash_password("testpass123"),
+        )
+        db.add(user)
+        await db.commit()
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        login_resp = await client.post("/api/v1/auth/register", json={
+            "name": "PDF Test User",
+            "email": "pdf_test@example.com",
+            "password": "testpass123",
+        })
+        if login_resp.status_code == 409:
+            login_resp = await client.post("/api/v1/auth/login", json={
+                "email": "pdf_test@example.com",
+                "password": "testpass123",
+            })
+        assert login_resp.status_code == 200
+        token = login_resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
         # Create a case
-        c_resp = await client.post("/api/v1/cases", json={"title": "PDF Test Case", "analyst_id": "analyst-001"})
+        c_resp = await client.post("/api/v1/cases", json={"title": "PDF Test Case"}, headers=headers)
         assert c_resp.status_code == 200
         case_id = c_resp.json()["id"]
 
@@ -102,12 +131,13 @@ async def test_case_pdf_report_endpoint():
         ingest_resp = await client.post(
             "/api/v1/analyze-email",
             files={"file": ("phish.eml", eml_payload, "message/rfc822")},
-            data={"case_id": case_id}
+            data={"case_id": case_id},
+            headers=headers,
         )
         assert ingest_resp.status_code == 200
 
         # Request Case PDF Report
-        pdf_resp = await client.get(f"/api/v1/cases/{case_id}/report/pdf")
+        pdf_resp = await client.get(f"/api/v1/cases/{case_id}/report/pdf", headers=headers)
         assert pdf_resp.status_code == 200
         assert pdf_resp.headers["content-type"] == "application/pdf"
         assert pdf_resp.content.startswith(b"%PDF-")
@@ -116,7 +146,36 @@ async def test_case_pdf_report_endpoint():
 
 @pytest.mark.asyncio
 async def test_email_pdf_report_endpoint():
+    from core.database import AsyncSessionLocal
+    from core.models import User
+    from core.rbac import hash_password
+
+    async with AsyncSessionLocal() as db:
+        user = User(
+            id="pdf-email-test-user",
+            email="pdf_email_test@example.com",
+            name="PDF Email Test User",
+            role="analyst",
+            hashed_password=hash_password("testpass123"),
+        )
+        db.add(user)
+        await db.commit()
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        login_resp = await client.post("/api/v1/auth/register", json={
+            "name": "PDF Email Test User",
+            "email": "pdf_email_test@example.com",
+            "password": "testpass123",
+        })
+        if login_resp.status_code == 409:
+            login_resp = await client.post("/api/v1/auth/login", json={
+                "email": "pdf_email_test@example.com",
+                "password": "testpass123",
+            })
+        assert login_resp.status_code == 200
+        token = login_resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
         # Ingest an email
         eml_payload = (
             b"From: support@bank-alert.com\r\n"
@@ -126,13 +185,14 @@ async def test_email_pdf_report_endpoint():
         )
         ingest_resp = await client.post(
             "/api/v1/analyze-email",
-            files={"file": ("test.eml", eml_payload, "message/rfc822")}
+            files={"file": ("test.eml", eml_payload, "message/rfc822")},
+            headers=headers,
         )
         assert ingest_resp.status_code == 200
         email_id = ingest_resp.json()["email_id"]
 
         # Request Email PDF Report
-        pdf_resp = await client.get(f"/api/v1/emails/{email_id}/report.pdf")
+        pdf_resp = await client.get(f"/api/v1/emails/{email_id}/report.pdf", headers=headers)
         assert pdf_resp.status_code == 200
         assert pdf_resp.headers["content-type"] == "application/pdf"
         assert pdf_resp.content.startswith(b"%PDF-")

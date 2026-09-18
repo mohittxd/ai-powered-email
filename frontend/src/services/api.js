@@ -13,12 +13,11 @@ api.interceptors.request.use(cfg => {
 })
 
 // ── Email Analysis ──────────────────────────────────────────────────────────
-export const analyzeEmail = async (file = null, rawHeaders = null, caseId = null, analystId = null) => {
+export const analyzeEmail = async (file = null, rawHeaders = null, caseId = null) => {
   const form = new FormData()
   if (file) form.append('file', file)
   if (rawHeaders) form.append('raw_headers', rawHeaders)
   if (caseId) form.append('case_id', caseId)
-  form.append('analyst_id', analystId)
   const res = await api.post('/analyze-email', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
@@ -32,8 +31,8 @@ export const getMe = async () => (await api.get('/auth/me')).data
 
 // ── Cases ───────────────────────────────────────────────────────────────────
 export const listCases = async (params = {}) => (await api.get('/cases', { params })).data
-export const createCase = async (title, analystId) =>
-  (await api.post('/cases', { title, analyst_id: analystId })).data
+export const createCase = async (title) =>
+  (await api.post('/cases', { title })).data
 export const getCase = async (id) => (await api.get(`/cases/${id}`)).data
 export const updateCaseStatus = async (id, status) =>
   (await api.patch(`/cases/${id}/status`, null, { params: { status } })).data
@@ -61,6 +60,7 @@ export const getJsonReport = (emailId) => `/api/v1/emails/${emailId}/report.json
 
 // ── Imported Gmail / Existing Emails ───────────────────────────────────────
 export const getEmails = async (params = {}) => (await api.get('/emails', { params })).data
+export const getEmail = async (emailId) => (await api.get(`/emails/${emailId}`)).data
 export const analyzeExistingEmail = async (emailId) => (await api.post(`/emails/${emailId}/analyze`)).data
 
 
@@ -69,4 +69,3 @@ export const getCaseJsonReport = (caseId) => `/api/v1/cases/${caseId}/report`
 export const getCasePdfReport = (caseId) => `/api/v1/cases/${caseId}/report/pdf`
 
 export default api
-

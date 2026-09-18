@@ -48,7 +48,7 @@ class NumberedCanvas(canvas.Canvas):
 
         # Footer on all pages
         self.setFont("Helvetica", 8)
-        self.drawString(36, 25, "ForensicAI Threat Intelligence Platform v3.0 | Chain of Custody Record")
+        self.drawString(36, 25, "Forensic AI Threat Intelligence Platform v3.0 | Chain of Custody Record")
         page_str = f"Page {self._pageNumber} of {page_count}"
         self.drawRightString(8.5 * inch - 36, 25, page_str)
         self.setStrokeColor(colors.HexColor("#CBD5E1"))

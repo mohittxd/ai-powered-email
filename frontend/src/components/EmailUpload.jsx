@@ -1,25 +1,21 @@
 import { useState, useRef } from 'react'
-import { Upload, FileText, X, Zap, AlertCircle } from 'lucide-react'
+import { Upload, FileText, X, Zap, AlertCircle, Info } from 'lucide-react'
 
 export default function EmailUpload({ onAnalyze, loading }) {
   const [dragging, setDragging] = useState(false)
   const [file, setFile] = useState(null)
-  const [mode, setMode] = useState('file') // 'file' | 'paste'
-  const [rawText, setRawText] = useState('')
+  const [mode, setMode] = useState('file') // 'file' | 'body'
+  const [bodyText, setBodyText] = useState('')
   const fileRef = useRef()
 
   const handleFile = (f) => {
     if (!f) return
-   const allowedExtensions = ['.eml', '.msg']
-
-const extension = f.name
-  .slice(f.name.lastIndexOf('.'))
-  .toLowerCase()
-
-if (!allowedExtensions.includes(extension)) {
-  alert('Please upload a valid .eml or .msg file')
-  return
-}
+    const allowedExtensions = ['.eml', '.msg']
+    const extension = f.name.slice(f.name.lastIndexOf('.')).toLowerCase()
+    if (!allowedExtensions.includes(extension)) {
+      alert('Please upload a valid .eml or .msg file')
+      return
+    }
     setFile(f)
   }
 
@@ -32,25 +28,43 @@ if (!allowedExtensions.includes(extension)) {
 
   const onSubmit = () => {
     if (mode === 'file' && file) onAnalyze(file, null)
-    else if (mode === 'paste' && rawText.trim()) onAnalyze(null, rawText.trim())
+    else if (mode === 'body' && bodyText.trim()) onAnalyze(null, bodyText.trim())
   }
 
-  const canSubmit = (mode === 'file' && file) || (mode === 'paste' && rawText.trim().length > 10)
+  const canSubmit = (mode === 'file' && file) || (mode === 'body' && bodyText.trim().length > 10)
 
   return (
     <div className="card">
-      <div className="card-header">
+      <div className="card-header" style={{ marginBottom: 10 }}>
         <div className="card-title">
           <Upload size={14} />
           Evidence Upload
         </div>
         <div className="tabs">
           <button className={`tab ${mode === 'file' ? 'active' : ''}`} onClick={() => setMode('file')}>
-            .EML File
+            Upload .EML
           </button>
-          <button className={`tab ${mode === 'paste' ? 'active' : ''}`} onClick={() => setMode('paste')}>
-            Paste Headers
+          <button className={`tab ${mode === 'body' ? 'active' : ''}`} onClick={() => setMode('body')}>
+            Paste Email
           </button>
+        </div>
+      </div>
+
+      {/* Info banner explaining the two modes */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: 8,
+        padding: '8px 12px', marginBottom: 12,
+        background: 'var(--accent-dim)', border: '1px solid rgba(79,195,247,0.15)',
+        borderRadius: 'var(--radius-sm)', fontSize: '0.72rem', color: 'var(--text-secondary)',
+        lineHeight: 1.5,
+      }}>
+        <Info size={14} color="var(--accent)" style={{ flexShrink: 0, marginTop: 1 }} />
+        <div>
+          {mode === 'file' ? (
+            <span><strong>Upload .EML</strong> — Provides full email evidence including headers, authentication results (SPF/DKIM/DMARC), network trace, and geolocation analysis.</span>
+          ) : (
+            <span><strong>Paste Email</strong> — Body-based analysis only. Headers, sender IP, authentication, and network evidence are unavailable when pasting raw text. The system will not fabricate missing forensic fields.</span>
+          )}
         </div>
       </div>
 
@@ -62,11 +76,11 @@ if (!allowedExtensions.includes(extension)) {
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
         >
-        <input
-  ref={fileRef}
-  type="file"
-  accept=".eml,.msg,message/rfc822,application/vnd.ms-outlook"
-  style={{ display: 'none' }}
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".eml,.msg,message/rfc822,application/vnd.ms-outlook"
+            style={{ display: 'none' }}
             onChange={e => handleFile(e.target.files?.[0])} />
 
           {file ? (
@@ -86,14 +100,25 @@ if (!allowedExtensions.includes(extension)) {
             <>
               <span className="upload-icon">📧</span>
               <div className="upload-title">Drop .eml or .msg file here</div>
-              <div className="upload-sub">or click to browse — .eml / .msg — max 10 MB</div>
+              <div className="upload-sub">or click to browse — max 10 MB</div>
             </>
           )}
         </div>
       ) : (
-        <textarea className="input" rows={7} placeholder="Paste raw email headers or full .eml content here..."
-          value={rawText} onChange={e => setRawText(e.target.value)}
-          style={{ marginTop: 4 }} />
+        <div>
+          <textarea
+            className="input"
+            rows={8}
+            placeholder={`Paste email body here...\n\nExample:\nSubject: Your account has been suspended\nFrom: security@example.com\n\nDear user, your account has been compromised...`}
+            value={bodyText}
+            onChange={e => setBodyText(e.target.value)}
+            style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.78rem' }}
+          />
+          <div style={{ marginTop: 6, fontSize: '0.68rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <AlertCircle size={11} />
+            Pasted content is sanitized before processing. HTML tags are stripped. No scripts or active content are executed.
+          </div>
+        </div>
       )}
 
       <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>

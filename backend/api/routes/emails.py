@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
 from core.config import settings
 from core.database import get_db
-from core.models import AuditLog, Email, IOC, TraceHop, AuthenticationResult, AnalysisResult
+from core.models import AuditLog, Email, IOC, TraceHop, AuthenticationResult, AnalysisResult, Case
+from core.rbac import get_current_user
 from services.email_ingestor import ingest_email, validate_eml_upload, parse_eml
 from services.header_forensics import analyze_header_forensics
 from services.email_auth import analyze_authentication
@@ -21,6 +22,7 @@ from services.threat_intel import get_threat_intel
 from services.risk_engine import calculate_risk_score
 from services.ai_classifier import run_ai_classification
 from services.timeline import build_email_timeline
+import bleach as _bleach
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -34,31 +36,68 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # Phase 2: hard 10 MB cap
     summary="Ingest and parse email evidence",
 )
 async def analyze_email(
-  file: UploadFile = File(..., description="Raw email evidence file"),
-    case_id: str | None = Form(default=None),
-    analyst_id: str | None = Form(default=None),
+  file: UploadFile = File(default=None, description="Raw email evidence file (.eml/.msg)"),
+  raw_headers: str | None = Form(default=None, description="Pasted raw email body text"),
+  case_id: str | None = Form(default=None),
+  user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # ── 1. Read ───────────────────────────────────────────────────────────────
-    raw_bytes = await file.read()
-
-    # ── 2. Validate ───────────────────────────────────────────────────────────
-    try:
-        validate_eml_upload(
-            filename=file.filename or "",
-            content_type=file.content_type or "",
-            data=raw_bytes,
-            max_size_bytes=MAX_UPLOAD_BYTES,
+    if case_id:
+        case_result = await db.execute(
+            select(Case).where(Case.id == case_id, Case.analyst_id == user.id)
         )
-    except ValueError as exc:
-        logger.warning("Rejected upload: %s (analyst=%s)", exc, analyst_id)
-        raise HTTPException(status_code=400, detail=str(exc))
+        if not case_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Case not found")
+
+    # Determine input mode: file upload OR pasted body text
+    is_body_mode = raw_headers is not None and not file
+    if not file and not raw_headers:
+        raise HTTPException(status_code=400, detail="Provide either a .eml file or pasted email body text.")
+
+    if is_body_mode:
+        # ── Body-only mode: construct minimal RFC-5322 email from pasted text ──
+        # Sanitize: strip HTML/script tags, keep plain text
+        clean_body = _bleach.clean(raw_headers, tags=[], strip=True)
+        if len(clean_body.strip()) < 10:
+            raise HTTPException(status_code=400, detail="Pasted body is too short for meaningful analysis.")
+
+        # Build a minimal .eml envelope so the existing pipeline can process it
+        minimal_eml = (
+            "From: unavailable@pasted-body.local\r\n"
+            "To: analyst@forensics.local\r\n"
+            f"Subject: [Pasted Body] {clean_body[:60].replace(chr(10), ' ').strip()}\r\n"
+            "Date: Mon, 01 Jan 2024 00:00:00 +0000\r\n"
+            "Message-ID: <pasted-body@forensics.local>\r\n"
+            "MIME-Version: 1.0\r\n"
+            "Content-Type: text/plain; charset=UTF-8\r\n"
+            "Content-Transfer-Encoding: 7bit\r\n"
+            "X-ForensicAI-Input-Mode: pasted-body\r\n"
+            "\r\n"
+            f"{clean_body}"
+        )
+        raw_bytes = minimal_eml.encode("utf-8")
+        original_filename = "pasted-body.eml"
+    else:
+        # ── File upload mode (existing behavior) ────────────────────────────────
+        raw_bytes = await file.read()
+
+        try:
+            validate_eml_upload(
+                filename=file.filename or "",
+                content_type=file.content_type or "",
+                data=raw_bytes,
+                max_size_bytes=MAX_UPLOAD_BYTES,
+            )
+        except ValueError as exc:
+            logger.warning("Rejected upload for user %s: %s", user.id, exc)
+            raise HTTPException(status_code=400, detail=str(exc))
+        original_filename = file.filename or "upload.eml"
 
     # ── 3. Ingest (hash → parse → extract → store) ────────────────────────────
     try:
         result = ingest_email(
             raw_bytes=raw_bytes,
-            original_filename=file.filename or "upload.eml",
+            original_filename=original_filename,
             upload_dir=settings.upload_dir,
         )
     except Exception as exc:
@@ -149,6 +188,7 @@ async def analyze_email(
     # ── 4. Persist ────────────────────────────────────────────────────────────
     db_email = Email(
         id=email_id,
+        owner_id=user.id,
         case_id=case_id,
         sha256_hash=result["sha256"],
         raw_storage_path=result["storage_path"],
@@ -231,7 +271,7 @@ async def analyze_email(
     ))
 
     db.add(AuditLog(
-        analyst_id=analyst_id,
+        analyst_id=user.id,
         action="EMAIL_UPLOAD",
         resource_type="email",
         resource_id=email_id,
@@ -246,6 +286,7 @@ async def analyze_email(
     return {
         "email_id":    email_id,
         "case_id":     case_id,
+        "input_mode":  "pasted_body" if is_body_mode else "file_upload",
         "ingested_at": result["ingested_at"],
         "evidence": {
             "filename": result["filename"],

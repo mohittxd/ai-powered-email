@@ -8,6 +8,7 @@ from sqlalchemy import select, or_, func
 from datetime import datetime
 from core.database import get_db
 from core.models import Email, TraceHop, IOC, AuditLog
+from core.rbac import get_current_user
 
 router = APIRouter()
 
@@ -20,8 +21,9 @@ async def list_emails(
     limit: int = Query(50, le=200),
     offset: int = Query(0),
     db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
 ):
-    stmt = select(Email).order_by(Email.analyzed_at.desc()).offset(offset).limit(limit)
+    stmt = select(Email).where(Email.owner_id == user.id).order_by(Email.analyzed_at.desc()).offset(offset).limit(limit)
 
     if q:
         stmt = stmt.where(
@@ -40,7 +42,7 @@ async def list_emails(
     emails = result.scalars().all()
 
     # Count total
-    count_stmt = select(func.count()).select_from(Email)
+    count_stmt = select(func.count()).select_from(Email).where(Email.owner_id == user.id)
     total = (await db.execute(count_stmt)).scalar() or 0
 
     return {
@@ -67,8 +69,8 @@ async def list_emails(
 
 
 @router.get("/emails/{email_id}", summary="Get full email analysis detail")
-async def get_email(email_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Email).where(Email.id == email_id))
+async def get_email(email_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    result = await db.execute(select(Email).where(Email.id == email_id, Email.owner_id == user.id))
     em = result.scalar_one_or_none()
     if not em:
         raise HTTPException(404, "Email not found")
@@ -92,6 +94,10 @@ async def get_email(email_id: str, db: AsyncSession = Depends(get_db)):
         "subject": em.subject,
         "date_sent": em.date_sent.isoformat() if em.date_sent else None,
         "body_text": em.body_text,
+        "body_html": em.body_html,
+        "gmail_message_id": em.gmail_message_id,
+        "gmail_thread_id": em.gmail_thread_id,
+        "gmail_labels": em.gmail_labels,
         "fraud_score": round((em.fraud_score or 0) * 100),
         "classification": em.classification,
         "spf_result": em.spf_result,

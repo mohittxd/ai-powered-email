@@ -1,0 +1,35 @@
+{
+  "text_representation": "TF-IDF + TruncatedSVD",
+  "tfidf_max_features": 10000,
+  "svd_components": 64,
+  "svd_explained_variance": 0.32249768337009144,
+  "primary_features": [
+    "subject_len",
+    "subject_word_count",
+    "subject_uppercase_ratio",
+    "subject_special_char_ratio",
+    "body_len",
+    "body_word_count",
+    "avg_word_length",
+    "exclamation_count",
+    "body_digit_ratio",
+    "has_html_tags",
+    "body_line_count",
+    "body_caps_sequences",
+    "url_count_binary",
+    "has_url_in_body",
+    "body_url_count"
+  ],
+  "domain_features": [
+    "sender_domain_freq",
+    "receiver_domain_freq"
+  ],
+  "train_size": 27407,
+  "val_size": 5873,
+  "test_size": 5874,
+  "random_seed": 42,
+  "label_mapping": {
+    "0": "ham (legitimate)",
+    "1": "spam/phishing"
+  }
+}

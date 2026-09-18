@@ -163,3 +163,48 @@ async def test_all_six_mandatory_audit_logs():
                 assert act in recorded_actions, f"Expected action '{act}' not found in audit logs!"
 
         print("✅ All 6 mandatory audit log actions (LOGIN, EMAIL_UPLOAD, CASE_VIEW, REPORT_EXPORT, CASE_UPDATE, ADMIN_ACTION) verified in DB!")
+
+
+@pytest.mark.asyncio
+async def test_audit_log_accessible_by_non_admin():
+    """Non-admin authenticated users must be able to read the audit log."""
+    from core.database import AsyncSessionLocal
+    from core.models import User
+
+    async with AsyncSessionLocal() as db:
+        user = User(
+            id="audit-test-analyst",
+            email="audit_test@example.com",
+            name="Audit Test Analyst",
+            role="analyst",
+            hashed_password=hash_password("testpass123"),
+        )
+        db.add(user)
+        await db.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        login_resp = await client.post("/api/v1/auth/register", json={
+            "name": "Audit Test Analyst",
+            "email": "audit_test@example.com",
+            "password": "testpass123",
+        })
+        if login_resp.status_code == 409:
+            login_resp = await client.post("/api/v1/auth/login", json={
+                "email": "audit_test@example.com",
+                "password": "testpass123",
+            })
+        assert login_resp.status_code == 200
+        analyst_hdr = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
+
+        # Analyst can list audit log
+        list_resp = await client.get("/api/v1/audit", headers=analyst_hdr)
+        assert list_resp.status_code == 200
+        assert isinstance(list_resp.json(), list)
+
+        # Analyst can get audit stats
+        stats_resp = await client.get("/api/v1/audit/stats", headers=analyst_hdr)
+        assert stats_resp.status_code == 200
+        assert "total" in stats_resp.json()
+        assert "by_action" in stats_resp.json()
+
+        print("✅ Non-admin analyst can access audit log and stats.")

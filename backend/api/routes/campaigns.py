@@ -5,18 +5,22 @@ Exposes NetworkX email relationship clusters, shared infrastructure, and correla
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
+from core.rbac import get_current_user
 from services.campaign import cluster_emails_by_iocs
 
 router = APIRouter()
 
 
 @router.get("/campaigns", summary="List auto-correlated email campaigns (NetworkX)")
-async def list_campaigns(db: AsyncSession = Depends(get_db)):
+async def list_campaigns(db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
     """
     Executes Phase 21 NetworkX campaign correlation across all analyzed emails.
     Identifies shared infrastructure (Senders, Reply-Tos, Domains, IPs, URLs, ASNs).
     """
-    campaigns = await cluster_emails_by_iocs(db)
+    try:
+        campaigns = await cluster_emails_by_iocs(db, user.id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Campaign correlation failed: {exc}")
     return {
         "total_campaigns": len(campaigns),
         "campaigns": campaigns,
@@ -25,8 +29,11 @@ async def list_campaigns(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/campaigns/summary", summary="Campaign threat summary")
-async def campaign_summary(db: AsyncSession = Depends(get_db)):
-    campaigns = await cluster_emails_by_iocs(db)
+async def campaign_summary(db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    try:
+        campaigns = await cluster_emails_by_iocs(db, user.id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Campaign correlation failed: {exc}")
     return {
         "total_campaigns": len(campaigns),
         "critical": sum(1 for c in campaigns if c.get("correlation_level") == "CRITICAL"),
@@ -38,8 +45,11 @@ async def campaign_summary(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/campaigns/{campaign_id}", summary="Get campaign details & NetworkX graph")
-async def get_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
-    campaigns = await cluster_emails_by_iocs(db)
+async def get_campaign(campaign_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    try:
+        campaigns = await cluster_emails_by_iocs(db, user.id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Campaign correlation failed: {exc}")
     target = next((c for c in campaigns if c["campaign_id"] == campaign_id or c.get("id") == campaign_id), None)
     if not target:
         raise HTTPException(status_code=404, detail=f"Campaign '{campaign_id}' not found.")

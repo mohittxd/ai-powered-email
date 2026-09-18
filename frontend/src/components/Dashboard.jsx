@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { analyzeEmail, getEmails, analyzeExistingEmail } from '../services/api'
+import { analyzeEmail, getEmails, getEmail, analyzeExistingEmail } from '../services/api'
 import EmailUpload from './EmailUpload'
 import FraudScore from './FraudScore'
 import RiskReasons from './RiskReasons'
@@ -28,7 +28,8 @@ import {
   CheckCircle2,
   XCircle,
   HelpCircle,
-  Clock
+  Clock,
+  Upload
 } from 'lucide-react'
 
 import { useToast } from './Toast'
@@ -38,6 +39,117 @@ function SkeletonCard() {
     <div className="stat-card" style={{ gap: 8 }}>
       <div className="skeleton" style={{ height: 12, width: '60%', borderRadius: 6 }} />
       <div className="skeleton" style={{ height: 28, width: '40%', borderRadius: 6 }} />
+    </div>
+  )
+}
+
+function EmailDetailModal({ emailDetails, onClose }) {
+  const [viewMode, setViewMode] = useState('text')
+  const hasHtml = !!(emailDetails.body_html && emailDetails.body_html.trim())
+  const hasText = !!(emailDetails.body_text && emailDetails.body_text.trim())
+
+  useEffect(() => {
+    if (hasHtml && !hasText) setViewMode('html')
+  }, [hasHtml, hasText])
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+    }} onClick={onClose}>
+      <div style={{
+        background: 'var(--bg-card)', border: '1px solid var(--border-accent)',
+        borderRadius: 14, width: '90vw', maxWidth: 800, maxHeight: '85vh',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        boxShadow: '0 8px 48px rgba(0,0,0,0.6)',
+      }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+              Email Message
+            </div>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', lineHeight: 1.3 }}>
+              {emailDetails.subject || '(No subject)'}
+            </h3>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'transparent', border: '1px solid var(--border-subtle)',
+            color: 'var(--text-muted)', borderRadius: 6, padding: '4px 10px',
+            cursor: 'pointer', fontSize: '0.8rem', flexShrink: 0, marginLeft: 12,
+          }}>Close</button>
+        </div>
+
+        {/* Metadata */}
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border-subtle)', fontSize: '0.82rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '6px 12px', alignItems: 'baseline' }}>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>From</span>
+            <span style={{ color: 'var(--text-primary)' }}>
+              {emailDetails.from_display_name ? `${emailDetails.from_display_name} <${emailDetails.from_address}>` : emailDetails.from_address || 'Unknown'}
+            </span>
+            {emailDetails.reply_to && (
+              <>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Reply-To</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{emailDetails.reply_to}</span>
+              </>
+            )}
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Date</span>
+            <span style={{ color: 'var(--text-secondary)' }}>
+              {emailDetails.date_sent ? new Date(emailDetails.date_sent).toLocaleString() : 'Unknown'}
+            </span>
+            {emailDetails.gmail_labels && emailDetails.gmail_labels.length > 0 && (
+              <>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Labels</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{emailDetails.gmail_labels.join(', ')}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* View mode toggle */}
+        {hasText && hasHtml && (
+          <div style={{ padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', gap: 6 }}>
+            <button className={`tab ${viewMode === 'text' ? 'active' : ''}`} onClick={() => setViewMode('text')} style={{ fontSize: '0.76rem' }}>Plain Text</button>
+            <button className={`tab ${viewMode === 'html' ? 'active' : ''}`} onClick={() => setViewMode('html')} style={{ fontSize: '0.76rem' }}>HTML</button>
+          </div>
+        )}
+
+        {/* Body */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
+          {viewMode === 'html' && hasHtml ? (
+            <div style={{
+              background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
+              borderRadius: 8, padding: 16, color: 'var(--text-primary)', fontSize: '0.88rem', lineHeight: 1.6,
+            }}>
+              <div
+                style={{ color: 'var(--text-primary)' }}
+                dangerouslySetInnerHTML={{ __html: emailDetails.body_html }}
+              />
+            </div>
+          ) : hasText ? (
+            <pre style={{
+              margin: 0, padding: 16, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere',
+              background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
+              borderRadius: 8, color: 'var(--text-primary)', fontFamily: 'inherit',
+              fontSize: '0.86rem', lineHeight: 1.6,
+            }}>
+              {emailDetails.body_text}
+            </pre>
+          ) : (
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
+              No message body available.
+            </div>
+          )}
+        </div>
+
+        {/* Footer with metadata */}
+        <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 16, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          {emailDetails.message_id && <span>Message-ID: {emailDetails.message_id}</span>}
+          {emailDetails.sha256_hash && <span>SHA-256: {emailDetails.sha256_hash.substring(0, 16)}…</span>}
+        </div>
+      </div>
     </div>
   )
 }
@@ -55,6 +167,8 @@ export default function Dashboard({ onAnalyzed }) {
   const [emailsError, setEmailsError] = useState(null)
   const [query, setQuery] = useState('')
   const [analyzingEmailId, setAnalyzingEmailId] = useState(null)
+  const [readingEmailId, setReadingEmailId] = useState(null)
+  const [emailDetails, setEmailDetails] = useState(null)
 
   const loadEmails = async (q = '') => {
     setEmailsLoading(true)
@@ -83,6 +197,18 @@ export default function Dashboard({ onAnalyzed }) {
   const handleSearch = (e) => {
     e.preventDefault()
     loadEmails(query)
+  }
+
+  const readEmail = async (email) => {
+    setReadingEmailId(email.id)
+    setEmailsError(null)
+    try {
+      setEmailDetails(await getEmail(email.id))
+    } catch (err) {
+      setEmailsError(err.response?.data?.detail || err.message || 'Unable to read this message.')
+    } finally {
+      setReadingEmailId(null)
+    }
   }
 
   const analyzeExisting = async (email) => {
@@ -117,7 +243,8 @@ export default function Dashboard({ onAnalyzed }) {
 
       const score = Math.round(data.risk_analysis?.final_risk_score ?? data.risk_analysis?.risk_score ?? 0)
       const level = score >= 70 ? 'error' : score >= 25 ? 'warning' : 'success'
-      toast.push(`Forensic analysis complete — Risk score: ${score}/100`, level)
+      const modeNote = data.input_mode === 'pasted_body' ? ' (body-only analysis)' : ''
+      toast.push(`Forensic analysis complete${modeNote} — Risk score: ${score}/100`, level)
     } catch (err) {
       const msg = err.response?.data?.detail || err.message || 'Analysis failed'
       setError(msg)
@@ -374,6 +501,9 @@ const buildTimelineFromResponse = (res) => {
                   </div>
 
                   <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn" onClick={() => readEmail(email)} disabled={!!readingEmailId}>
+                      {readingEmailId === email.id ? 'Opening…' : 'Read'}
+                    </button>
                     <button className="btn" onClick={() => analyzeExisting(email)} disabled={!!analyzingEmailId}>
                       {analyzingEmailId === email.id ? 'Analyzing…' : 'Analyze'}
                     </button>
@@ -382,7 +512,20 @@ const buildTimelineFromResponse = (res) => {
                 </div>
               ))}
             </div>
+            {emailDetails && (
+              <EmailDetailModal emailDetails={emailDetails} onClose={() => setEmailDetails(null)} />
+            )}
           </div>
+        </section>
+      )}
+
+      {/* 3. Upload Evidence Section */}
+      {isVisible('sec-upload') && (
+        <section id="sec-upload">
+          <div className="section-title">
+            <Upload size={18} color="var(--accent)" /> Section 3: Upload Evidence
+          </div>
+          <EmailUpload onAnalyze={handleAnalyze} loading={loading} />
         </section>
       )}
 
@@ -404,15 +547,15 @@ const buildTimelineFromResponse = (res) => {
         </div>
       )}
 
-      {/* Empty State */}
-      {!result && !loading && !error && (
-        <div className="card fade-in">
-          <div className="empty-state">
-            <div className="empty-state-icon">🛡️</div>
-            <div className="empty-state-title">SOC Forensic Intelligence Platform Ready</div>
-            <div className="empty-state-sub">
-              Upload a <code>.eml</code> file or paste raw email headers above to execute full 14-phase forensic analysis.
-            </div>
+      
+
+      {/* Body-only analysis warning */}
+      {result?.input_mode === 'pasted_body' && (
+        <div className="analysis-banner medium fade-in">
+          <AlertTriangle size={20} />
+          <div>
+            <strong>Body-Only Analysis</strong>
+            <div>This analysis was performed on a pasted email body. Headers, sender IP, SPF/DKIM/DMARC authentication, MTA relay chain, and geolocation evidence are unavailable and have not been fabricated.</div>
           </div>
         </div>
       )}

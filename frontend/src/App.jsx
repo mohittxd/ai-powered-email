@@ -9,12 +9,6 @@ import CampaignView from './components/CampaignView'
 import StatsHeader from './components/StatsHeader'
 import Login from './components/Login'
 
-const ROLE_COLORS = {
-  admin:        '#f44336',
-  analyst:      'var(--accent)',
-  investigator: '#ff9800',
-}
-
 function Sidebar({ active, setActive, onLogout }) {
     const items = [
     { id: 'dashboard', label: 'Analyzer',       icon: <LayoutDashboard size={16} />, section: 'Analysis' },
@@ -49,8 +43,6 @@ function Sidebar({ active, setActive, onLogout }) {
           <LogOut size={13} /> Sign Out
         </button>
         <div style={{ marginTop: 10, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-          <div>EmailForensics v3.0.0</div>
-          <div style={{ marginTop: 2, color: 'var(--critical)', fontSize: '0.65rem' }}>🔒 SOC · Legal · IR</div>
         </div>
       </div>
     </div>
@@ -63,12 +55,17 @@ function SettingsPage({ user }) {
   const [gmailStatus, setGmailStatus] = useState({
     connected: false,
     google_email: null,
+    last_sync_at: null,
+    last_sync_stats: null,
     loading: true,
   })
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState(null)
 
-  const API = 'http://localhost:8001'
+  // Docker serves the UI and API from the same origin. Keep the explicit
+  // backend URL only for the Vite development server.
+  const API = import.meta.env.VITE_API_URL
+    || (window.location.port === '5173' ? 'http://localhost:8001' : '')
 
   const getToken = () => localStorage.getItem('ef_token')
 
@@ -88,6 +85,8 @@ function SettingsPage({ user }) {
       setGmailStatus({
         connected: !!data.connected,
         google_email: data.google_email || null,
+        last_sync_at: data.last_sync_at || null,
+        last_sync_stats: data.last_sync_stats || null,
         loading: false,
       })
     } catch (err) {
@@ -104,6 +103,10 @@ function SettingsPage({ user }) {
       toast.push('Gmail connected successfully!', 'success')
       window.history.replaceState({}, document.title, window.location.pathname)
       loadGmailStatus()
+      setTimeout(() => syncGmail(), 0)
+    } else if (params.get('gmail') === 'denied') {
+      toast.push('Gmail permission was not granted. You are still signed in.', 'error')
+      window.history.replaceState({}, document.title, window.location.pathname)
     }
   }, [])
 
@@ -156,6 +159,11 @@ function SettingsPage({ user }) {
       }
 
       setSyncResult(data)
+      setGmailStatus(prev => ({
+        ...prev,
+        last_sync_at: new Date().toISOString(),
+        last_sync_stats: data,
+      }))
 
       toast.push(
         `Gmail sync complete: ${data.imported || 0} imported, ${data.skipped || 0} skipped.`,
@@ -169,6 +177,28 @@ function SettingsPage({ user }) {
       toast.push(err.message || 'Gmail sync failed', 'error')
     } finally {
       setSyncing(false)
+    }
+
+  }
+
+  const disconnectGmail = async () => {
+      try {
+        const res = await fetch(`${API}/api/integrations/gmail/disconnect`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${getToken()}` },
+        })
+        if (!res.ok) throw new Error('Unable to disconnect Gmail')
+        setGmailStatus({
+          connected: false,
+          google_email: null,
+          last_sync_at: null,
+          last_sync_stats: null,
+          loading: false,
+        })
+        setSyncResult(null)
+        toast.push('Gmail disconnected. Existing forensic records were preserved.', 'success')
+      } catch (err) {
+        toast.push(err.message || 'Unable to disconnect Gmail', 'error')
     }
   }
 
@@ -190,7 +220,6 @@ function SettingsPage({ user }) {
             items: [
               ['User', user?.name || '—'],
               ['Email', user?.email || '—'],
-              ['Role', user?.role || '—'],
               ['ID', user?.id || '—'],
             ],
           },
@@ -338,6 +367,11 @@ function SettingsPage({ user }) {
               }}>
                 {gmailStatus.google_email || 'Google account connected'}
               </div>
+              {gmailStatus.last_sync_at && (
+                <div style={{ marginTop: 4, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Last sync: {new Date(gmailStatus.last_sync_at).toLocaleString()}
+                </div>
+              )}
             </div>
 
             <button
@@ -356,6 +390,22 @@ function SettingsPage({ user }) {
               }}
             >
               {syncing ? 'Syncing Gmail…' : '↻ Sync Gmail'}
+            </button>
+            <button
+              onClick={disconnectGmail}
+              disabled={syncing}
+              style={{
+                padding: '9px 14px',
+                borderRadius: 8,
+                background: 'transparent',
+                border: '1px solid var(--critical)',
+                color: 'var(--critical)',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: syncing ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Disconnect Gmail
             </button>
           </div>
         )}
@@ -403,15 +453,9 @@ function SettingsPage({ user }) {
               flexWrap: 'wrap',
               fontSize: '0.82rem'
             }}>
-              <span>
-                <strong>{syncResult.imported_count || 0}</strong> Imported
-              </span>
-              <span>
-                <strong>{syncResult.skipped_count || 0}</strong> Skipped
-              </span>
-              <span>
-                <strong>{syncResult.failed_count || 0}</strong> Failed
-              </span>
+              <span><strong>{syncResult.imported ?? syncResult.imported_count ?? 0}</strong> Imported</span>
+              <span><strong>{syncResult.skipped ?? syncResult.skipped_count ?? 0}</strong> Skipped</span>
+              <span><strong>{syncResult.failed ?? syncResult.failed_count ?? 0}</strong> Failed</span>
             </div>
           </div>
         )}
@@ -426,6 +470,17 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('ef_user') || 'null') } catch { return null }
   })
   const [statsKey, setStatsKey] = useState(0)
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('auth_token')
+    const gmailConnected = new URLSearchParams(window.location.search).get('gmail') === 'connected'
+    if (gmailConnected) setActivePage('settings')
+    if (token) {
+      localStorage.setItem('ef_token', token)
+      window.history.replaceState({}, document.title, window.location.pathname)
+      fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null).then(data => data && (localStorage.setItem('ef_user', JSON.stringify(data)), setUser(data)))
+    }
+  }, [])
 
   const handleLogin = (userData) => setUser(userData)
   const handleLogout = () => {
@@ -459,16 +514,13 @@ export default function App() {
     }
   }
 
-  const roleColor = ROLE_COLORS[user.role] || 'var(--accent)'
-
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="topbar-logo">
           <div className="logo-icon"><Shield size={16} color="#fff" /></div>
-          EmailForensics
+          Forensic AI
         </div>
-        <span className="topbar-badge">Defensive Only</span>
         <div className="topbar-spacer" />
         <div className="topbar-status">
           <div className="status-dot" />
@@ -479,9 +531,6 @@ export default function App() {
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             <span style={{ color: 'var(--text-secondary)' }}>{user.name}</span>
           </div>
-          <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 100, background: `${roleColor}22`, color: roleColor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            {user.role}
-          </span>
         </div>
       </header>
 

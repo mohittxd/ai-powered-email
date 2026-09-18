@@ -1,6 +1,6 @@
 # 🛡️ ForensicAI — AI-Powered Email Threat Detection & Forensic Intelligence Platform
 
-> **ForensicAI** is an enterprise defensive security application designed for SOC analysts, incident response teams, and security researchers to analyze suspicious email evidence, extract IOCs, trace network origin paths, evaluate authentication parameters (SPF/DKIM/DMARC), run Transformer ML risk classification, execute NetworkX campaign correlation, and export legal-grade PDF forensic reports.
+> **ForensicAI** is an enterprise defensive security application designed for SOC analysts, incident response teams, and security researchers to analyze suspicious `.eml` evidence, extract IOCs, trace network origin paths, evaluate authentication parameters (SPF/DKIM/DMARC), run Transformer ML risk classification, execute NetworkX campaign correlation, and export legal-grade PDF forensic reports.
 
 ---
 
@@ -10,40 +10,19 @@ To launch the complete platform (Frontend, FastAPI Backend, PostgreSQL Database,
 
 ```bash
 # 1. Clone or navigate to repository root
-cd "<your current folder name>"
+cd "new s"
 
 # 2. Copy environment configuration
 cp .env.example .env
 
 # 3. Build and launch all services with Docker Compose
 docker compose up --build
-
-# 4. Run in the bckground
-docker compose up -d --build
-
-# 5. check container
-docker compose ps
 ```
 
 Once started, access the application interfaces:
-- **Analyst Web Dashboard**: [http://localhost:3000](http://localhost:3000)
-- **FastAPI REST API Docs (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **API Health Check**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
-
----
-
-## 📥 Supported Email Evidence Formats
-
-ForensicAI ingests raw email evidence and normalizes it before analysis, rather than being limited to a single source format.
-
-| Format | Extension | Status |
-| :--- | :--- | :--- |
-| Internet Message Format | `.eml` | ✅ Parsed and analyzed |
-| Outlook Message Format | `.msg` | ✅ Parsed and analyzed (via `extract-msg`) |
-
-Uploaded evidence is parsed into a normalized internal email representation (headers, MIME body parts, attachments) so the rest of the forensic pipeline — authentication checks, IOC extraction, ML classification, and reporting — runs identically regardless of the original source format.
-
-> **Note:** Only the formats listed above are parsed by the current backend. If your deployment's upload UI presents additional file types, treat any format not listed here as **not yet supported for forensic analysis** until the backend parsing layer is extended.
+- **ForensicAI dashboard**: [http://localhost:3000](http://localhost:3000)
+- **FastAPI REST API Docs (Swagger UI)**: [http://localhost:8001/docs](http://localhost:8001/docs)
+- **API Health Check**: [http://localhost:8001/api/v1/health](http://localhost:8001/api/v1/health)
 
 ---
 
@@ -69,37 +48,53 @@ Uploaded evidence is parsed into a normalized internal email representation (hea
       └──────────────────────────┘   └──────────────────────────┘
 ```
 
-### Evidence Ingestion Workflow
-
-```text
-User uploads email evidence (.eml / .msg)
-       ↓
-File type detection
-       ↓
-Format-specific email parser (email.parser / extract-msg)
-       ↓
-Normalized email representation (headers, MIME body, attachments)
-       ↓
-Forensic analysis pipeline
-       ↓
-Authentication / header / IP / URL / attachment analysis
-       ↓
-Fraud / risk assessment (Transformer + XGBoost classifier)
-       ↓
-Dashboard and forensic report
-```
-
 ---
 
-## 🔐 Default Access Credentials (RBAC)
+## 🔐 Authentication
 
-The system comes pre-configured with 3 role-based accounts for SOC demonstration:
+The website provides two separate authentication options: ForensicAI email/password
+login for local accounts, and **Continue with Google**. Google identity login
+requests only `openid`, `email`, and `profile`; ForensicAI never receives or
+stores a Google password. Password login does not provide Gmail mailbox access;
+Gmail is connected separately from the dashboard.
 
-| Role | Username | Email | Password | Permissions |
-| :--- | :--- | :--- | :--- | :--- |
-| **ADMIN** | `admin` | `admin@forensic.local` | `Admin123!` | All permissions, User Management, Immutable Audit Logs |
-| **INVESTIGATOR** | `investigator` | `investigator@forensic.local` | `Investigator123!` | Case view, Forensic PDF Report export, IOC Database query |
-| **ANALYST** | `analyst` | `analyst@forensic.local` | `Analyst123!` | Upload email evidence (`.eml`, `.msg`), Run threat analysis, View assigned cases |
+Authorization remains enforced server-side so existing administrator functions
+continue to work. Roles are not a login choice.
+
+### Gmail authorization and synchronization
+
+Gmail mailbox access is a separate, explicit action from the dashboard. Clicking
+**Connect Gmail** requests only
+`https://www.googleapis.com/auth/gmail.readonly`. The default **All Mail** query
+is:
+
+```text
+in:anywhere -in:sent -in:spam -in:trash
+```
+
+This includes received archived mail, excludes Sent/Spam/Trash, follows all
+`nextPageToken` pages, and stops at `GMAIL_SYNC_MAX_MESSAGES` (default `1000`).
+Use the Inbox option (`in:inbox`) when only Inbox messages are required. Each
+message is retrieved as raw MIME and passed through the existing ingestion and
+SHA-256 deduplication path. Failed messages do not stop the remaining import.
+
+Disconnecting Gmail revokes the access token when possible and removes local
+credentials without deleting imported forensic evidence, cases, reports, or IOCs.
+
+### Google Cloud Console checklist
+
+Configure the OAuth web client with these redirect URIs:
+
+```text
+http://localhost:8001/api/v1/auth/google/callback
+http://localhost:8001/api/integrations/gmail/callback
+```
+
+Use `http://localhost:3000` as an authorized JavaScript origin when required by
+the client configuration. Enable the Gmail API, configure the OAuth consent
+screen and test users, and complete Google's publishing/verification process
+for the restricted Gmail read-only scope before production use. Provide the
+required application name, privacy policy, and support information.
 
 ---
 
@@ -147,22 +142,15 @@ python scripts/evaluate_ml.py
 
 ## 📋 Features Checklist & Key Capabilities
 
-- [x] **Multi-Format Email Evidence Ingestion**: Accepts `.eml` and `.msg` email evidence, detects the source format, calculates SHA-256 hashes, and extracts MIME bodies and headers into a normalized representation.
+- [x] **Email Evidence Ingestion**: Parse `.eml` attachments, calculate SHA-256 hashes, extract MIME bodies and headers.
 - [x] **Header Forensics & Trace Route**: Reconstruct Received hop chains, flag anomalies, identify earliest public sender IP.
 - [x] **Authentication Engine**: Strict SPF, DKIM, and DMARC verification.
 - [x] **IOC Extraction & IP Intel**: Automated URL/Domain/IP extraction, AbuseIPDB threat lookup, and GeoIP mapping.
 - [x] **AI / NLP Defensive Classifier**: Transformer feature extraction combined with an explainable XGBoost risk model.
 - [x] **NetworkX Campaign Correlation**: Multigraph infrastructure clustering (Senders, Reply-Tos, Domains, IPs, ASNs).
 - [x] **Interactive Investigation Timeline**: 11-step interactive event sequence for evidence tracking.
-- [x] **Role-Based Access Control (RBAC)**: Secure JWT authentication with immutable PostgreSQL audit trail.
+- [x] **Authorization**: Server-side authorization with secure JWT authentication and immutable PostgreSQL audit trail.
 - [x] **ReportLab PDF Export**: Legal-grade forensic case report PDF generation with attribution disclaimers.
-
----
-
-## ⚠️ Limitations
-
-- Forensic parsing currently covers `.eml` and `.msg` email evidence only. Other document or archive types (e.g. PDF, DOCX, images, ZIP, CSV) are **not** parsed as email evidence, even if such files are accepted elsewhere in the platform.
-- Technical indicators represent observed structural evidence and network correlations. They do not by themselves establish the identity of a human actor.
 
 ---
 

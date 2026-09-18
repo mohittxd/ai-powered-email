@@ -3,12 +3,13 @@ import { listAudit, auditStats } from '../services/api'
 import { BookOpen, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const ACTION_CONFIG = {
-  analyze_email:       { label: 'Email Analyzed',   color: 'var(--accent)',    icon: '🔍' },
-  export_json_report:  { label: 'JSON Exported',    color: 'var(--low)',       icon: '📄' },
-  export_pdf_report:   { label: 'PDF Exported',     color: 'var(--low)',       icon: '📑' },
-  create_case:         { label: 'Case Created',     color: 'var(--medium)',    icon: '📂' },
-  update_case_status:  { label: 'Status Updated',   color: 'var(--high)',      icon: '🔄' },
-  delete_case:         { label: 'Case Deleted',     color: 'var(--critical)',  icon: '🗑' },
+  LOGIN:               { label: 'User Login',       color: 'var(--accent)',    icon: '🔑' },
+  REGISTER:            { label: 'User Registered',  color: 'var(--accent)',    icon: '👤' },
+  EMAIL_UPLOAD:        { label: 'Email Analyzed',   color: 'var(--accent)',    icon: '🔍' },
+  REPORT_EXPORT:       { label: 'Report Exported',   color: 'var(--low)',       icon: '📄' },
+  ADMIN_ACTION:        { label: 'Admin Action',     color: 'var(--medium)',    icon: '⚙️' },
+  CASE_VIEW:           { label: 'Case Viewed',      color: 'var(--low)',       icon: '📂' },
+  CASE_UPDATE:         { label: 'Case Updated',     color: 'var(--high)',      icon: '🔄' },
 }
 
 function getActionInfo(action) {

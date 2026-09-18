@@ -1,0 +1,8 @@
+.venv/
+datasets/
+models/email_risk_model/X_train_*.csv
+models/email_risk_model/X_val_*.csv
+models/email_risk_model/X_test_*.csv
+models/email_risk_model/email_metadata.csv
+reports/*.png
+reports/*_report.json

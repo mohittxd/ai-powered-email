@@ -6,7 +6,7 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
-    app_name: str = "ForensicAI"
+    app_name: str = "Forensic AI"
     app_version: str = "3.0.0"
     debug: bool = True
 
@@ -37,11 +37,15 @@ class Settings(BaseSettings):
     google_client_id: Optional[str] = None
     google_client_secret: Optional[str] = None
     google_redirect_uri: str = "http://localhost:8001/api/integrations/gmail/callback"
+    google_auth_redirect_uri: str = "http://localhost:8001/api/v1/auth/google/callback"
     google_gmail_scopes: str = "https://www.googleapis.com/auth/gmail.readonly"
+    frontend_url: str = "http://localhost:3000"
+    gmail_sync_max_messages: int = 1000
 
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"
 
 
 settings = Settings()

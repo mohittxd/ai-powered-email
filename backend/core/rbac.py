@@ -140,13 +140,7 @@ async def get_current_user(
 ) -> AuthenticatedUser:
     user = await get_optional_user(credentials)
     if not user:
-        # Fallback to default demo analyst if no token provided (avoids breaking existing unauthenticated dev requests)
-        return AuthenticatedUser(
-            user_id="u-002",
-            email="analyst@forensics.local",
-            name="Demo Analyst",
-            role="admin"  # Permissive fallback for unauthenticated local dev calls
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
     return user
 
 
@@ -157,13 +151,7 @@ def require_roles(allowed_roles: List[str]):
     ) -> AuthenticatedUser:
         user = await get_optional_user(credentials)
         if not user:
-            # If no credentials provided, return system fallback
-            user = AuthenticatedUser(
-                user_id="u-002",
-                email="analyst@forensics.local",
-                name="Demo Analyst",
-                role="admin"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
         
         normalized_allowed = [r.lower() for r in allowed_roles]
         if "admin" not in normalized_allowed:

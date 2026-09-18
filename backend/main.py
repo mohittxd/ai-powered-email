@@ -1,5 +1,5 @@
 """
-FastAPI application entrypoint — ForensicAI v3.0.0
+FastAPI application entrypoint — Forensic AI v3.0.0
 """
 import logging
 import os

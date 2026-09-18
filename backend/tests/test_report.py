@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from main import app
 from core.database import get_db
+from core.rbac import get_current_user, AuthenticatedUser
 from core.models import Case, Email
 
 
@@ -33,10 +34,6 @@ async def test_generate_case_report(tmp_path):
     
     eml_path = tmp_path / "test.eml"
     eml_path.write_bytes(DUMMY_EML)
-    
-    # We need a mock db session. Since we are using FastAPI dependency override,
-    # we can use the test client. But since we need DB access in the test, we'll
-    # just create a mock dependency.
     
     class MockResult:
         def __init__(self, item):
@@ -65,11 +62,21 @@ async def test_generate_case_report(tmp_path):
                 )
                 return MockResult(email)
             return MockResult(None)
+        async def commit(self):
+            pass
+        async def refresh(self, obj):
+            pass
+        def add(self, obj):
+            pass
             
     async def override_get_db():
         yield MockSession()
+
+    async def override_get_current_user():
+        return AuthenticatedUser(user_id="test-user", email="test@test.com", name="Test", role="analyst")
         
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
     
     async with AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.get(f"/api/v1/cases/{case_id}/report")
